@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" >
+  <head>
+    <title>mySaaS</title>
+    <link href='css/main.css' rel='stylesheet' type='text/css' />
+    <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400i,700,700i" rel="stylesheet">
+    <script type="text/javascript" src="system.js"></script>
+    <script type="text/javascript" src="build/game.js"></script>
+  </head>
+  <body>
+    <div class="stats">
+      <strong>mySaaS</strong> |
+      <span class="name">Visits</span>
+      <span class="value" id="visit-count">0</span>
+      <span class="name">Money</span>
+      <span class="value">$0</span>
+    </div>
+    <div class="root">
+      <div class="traffic">
+        <div>
+            <span class="button large" onmousedown="Game.eventManager.emit('visit_website')">Visit Website</span>  
+        </div>
+        <div class="access-logs-header">Traffic Logs</div>
+        <div class="access-logs">
+          <div class="container">
+            <div class="pre">GET  /index.html</div>
+            <div class="pre">POST /api/login</div>
+          </div>
+        </div>
+      </div>
+      <div class="game">
+        <div class="infrastructure">
+          <div class="header">Your Infrastructure</div>
+          <div class="server-name">server001</div>
+          <div class="server">
+            <div class="vm">web001</div>
+            <div class="vm empty">&nbsp;</div>
+            <div class="vm empty">&nbsp;</div>
+            <div class="vm empty">&nbsp;</div>
+            <div class="vm empty">&nbsp;</div>
+            <div class="vm empty">&nbsp;</div>
+          </div>
+          <div class="server-name">server002</div>
+          <div class="server">
+              <div class="vm empty">&nbsp;</div>
+              <div class="vm empty">&nbsp;</div>
+              <div class="vm">cdn001</div>
+              <div class="vm empty">&nbsp;</div>
+              <div class="vm empty">&nbsp;</div>
+              <div class="vm empty">&nbsp;</div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      System.import('game');
+    </script>
+  </body>
+</html>

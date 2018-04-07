@@ -1,0 +1,124 @@
+/**
+  * Common styles
+  */
+
+html {
+  height: 100%;
+}
+
+body {
+  background-color: #151414;
+  color: #eee;
+  font-family: 'Ubuntu Mono', monospace;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.button {
+  background-color: #0e0e0e;
+  border: 2px solid #cecece;
+  color: #dcdbdb;
+  display: inline-block;
+  border-radius: 3px;
+  padding: 5px 15px;
+  user-select: none;
+}
+
+.pre {
+  white-space: pre;
+}
+
+.button:hover {
+  cursor: pointer;
+  border-color: #fff;
+  color: #fff;
+}
+
+.button.large {
+  padding: 15px 60px;
+}
+
+/**
+  * Area-specific styles
+  */
+
+.stats {
+  flex-shrink: 1;
+  background-color: #000;
+  border-bottom: 2px solid #3a3a3a;
+  padding: 10px;
+}
+
+.stats .name {
+  color: #bbb;
+}
+
+.stats .value {
+  color: #eee;
+}
+
+.root {
+  display: flex;
+  height: 100%;
+}
+
+.root .traffic {
+  text-align: center;
+  flex-basis: 300px;
+  padding: 10px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 2px solid #3a3a3a;
+}
+
+.root .traffic .access-logs-header {
+  text-align: left;
+  margin: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.root .traffic .access-logs {
+  text-align: left;
+  flex-grow: 1;
+  display: flex;
+  margin: 10px;
+  font-size: 14px;
+}
+
+.root .traffic .access-logs .container {
+  align-self: flex-end;
+}
+
+.root .game {
+  flex-grow: 1;
+  padding: 10px;
+}
+
+.root .game .header {
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.root .game .infrastructure .server-name {
+  padding-bottom: 5px;
+  text-transform: up
+}
+
+.root .game .infrastructure .server {
+  display: flex;
+  margin-left: 5px;
+}
+
+.root .game .infrastructure .server .vm {
+  border: 1px solid #888;
+  padding: 20px;
+  margin: 0 10px 10px 0;
+}
+
+.root .game .infrastructure .server .vm.empty {
+  border: 1px dashed #444;
+}

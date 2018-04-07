@@ -1,0 +1,16 @@
+{
+  "name": "saas-game",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "tsc --watch -m system --outFile build/game.js js/game.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "typescript": "^2.8.1",
+    "vizceral": "^4.6.0"
+  }
+}
