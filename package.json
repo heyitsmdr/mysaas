@@ -5,11 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "tsc --watch -m system --outFile build/game.js js/game.ts"
+    "watch": "tsc --watch -m system --outFile build/game.js js/game.ts",
+    "serve": "autoreload-server -d ./ -p 8000"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "simple-autoreload-server": "^0.2.7",
     "typescript": "^2.8.1",
     "vizceral": "^4.6.0"
   }

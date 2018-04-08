@@ -1,4 +1,4 @@
-import BaseManager from 'BaseManager';
+import BaseManager from './BaseManager';
 
 class EventManager extends BaseManager {
   public emit(eventName: string) {
