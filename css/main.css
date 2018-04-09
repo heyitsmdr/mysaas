@@ -60,7 +60,7 @@ body {
   color: #eee;
 }
 
-.stats #visit-count {
+.stats #hit-count {
   color: #ff0;
 }
 
@@ -123,9 +123,24 @@ body {
 }
 
 .root .game .header {
+  display: flex;
+}
+
+.root .game .header .left {
   text-transform: uppercase;
   font-weight: 600;
   margin-bottom: 20px;
+  flex-basis: 50%;
+}
+
+.root .game .header .right {
+  text-align: right;
+  flex-grow: 1;
+  color: #888;
+}
+
+.root .game .header .right .selected {
+  color: #fff;
 }
 
 .root .game .infrastructure .server-name {

@@ -11,6 +11,7 @@ class Game {
   // Stats
   private visitCount: number = 0;
   private money: number = 0;
+  private moneyPerHit: number = 1;
 
   constructor () {
     this.eventManager = new EventManager(this);
@@ -19,9 +20,9 @@ class Game {
     this.loadSavedGame();
   }
 
-  public increaseVisitCount(increaseBy: number) {
-    this.visitCount += increaseBy;
-    document.querySelector('#visit-count').innerHTML = this.visitCount.toString();
+  public increaseHitCounter() {
+    this.visitCount += 1;
+    document.querySelector('#hit-count').innerHTML = this.visitCount.toString();
   }
 
   public loadSavedGame() {
@@ -31,7 +32,7 @@ class Game {
     }
 
     // Create a new game
-    this.addMoney(1000);
+    this.giveMoney(1000);
     const dc = this.infraManager.addDataCenter();
     const rack = dc.addRack();
     const server = rack.addServer();
@@ -39,9 +40,13 @@ class Game {
     vm.setPoweredOn(true);
   }
 
-  public addMoney(money: number) {
+  public giveMoney(money: number) {
     this.money += money;
     document.querySelector('#money-count').innerHTML = `$${this.money.toString()}`;
+  }
+
+  public giveMoneyForHit() {
+    this.giveMoney(this.moneyPerHit);
   }
 }
 

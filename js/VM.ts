@@ -3,7 +3,8 @@ import Game from './Game';
 import Server from './Server';
 
 enum VM_TYPES {
-  WEB_MONOLITH
+  WEB_MONOLITH,
+  CDN
 }
 
 class VM extends BaseObject {
@@ -23,6 +24,7 @@ class VM extends BaseObject {
   private currentLoad: number = 0.0;
   private currentMemory: number = 0.0;
   private currentStorage: number = 0.0;
+  private decreaseResourceInterval: number = 80;
 
   constructor(game: Game, server: Server) {
     super(game);
@@ -83,7 +85,7 @@ class VM extends BaseObject {
       this.startingLoad = this.currentLoad = 0.1;
       this.startingMemory = this.currentMemory = 0.2;
       this.startingStorage = this.currentStorage = 0.1;
-      this.lowerResourcesTimer = setInterval(this.lowerResourceUsage.bind(this), 100);
+      this.lowerResourcesTimer = setInterval(this.lowerResourceUsage.bind(this), this.decreaseResourceInterval);
     } else {
       clearInterval(this.lowerResourcesTimer);
       this.lowerResourcesTimer = null;
@@ -109,16 +111,20 @@ class VM extends BaseObject {
   }
 
   public canHandle(route: String): Boolean {
+    if (this.currentLoad > this.cpus) {
+      return false;
+    } else if (this.currentMemory > this.memory) {
+      return false;
+    }
+
     switch (this.type) {
       case VM_TYPES.WEB_MONOLITH:
         return route.match(/.*/) !== null;
     }
   }
 
-  public handleRequest(methodName: String, path: String): Boolean {
-    if (this.currentLoad > this.cpus) {
-      return false;
-    } else if (this.currentMemory > this.memory) {
+  public handleRequest(methodName: String, route: String): Boolean {
+    if (this.canHandle(route) === false) {
       return false;
     }
     
@@ -132,11 +138,12 @@ class VM extends BaseObject {
   private lowerResourceUsage(): void {
     if (this.currentLoad > this.startingLoad) {
       this.currentLoad -= 0.01;
+      this.game.infraManager.renderInfrastructureView();
     }
     if (this.currentMemory > this.startingMemory) {
       this.currentMemory -= 0.01;
+      this.game.infraManager.renderInfrastructureView();
     }
-    this.game.infraManager.renderInfrastructureView();
   }
 }
 

@@ -81,6 +81,10 @@ class InfraManager extends BaseManager {
     document.querySelector('#storage-count').innerHTML = `${storage.toString()}GB`;
   }
 
+  public updateRps(rps: number): void {
+    document.querySelector('#rps-count').innerHTML = rps.toString();
+  }
+
   private renderVmStatLine(statName: String, currentVal: number, maxVal: number, statSuffix: String = ''): String {
     const percentage = (currentVal * 100) / maxVal;
     let statColor = 'good-dark';

@@ -49,6 +49,10 @@ System.register("managers/EventManager", ["managers/BaseManager"], function (exp
                         div.className = 'pre';
                         div.innerHTML = "<span class=\"status-" + (result.statusCode === 200 ? 'good' : 'bad') + "\">" + result.statusCode + "</span> <span class=\"handled-by\">" + result.handledBy + "</span> " + result.method + " <span class=\"path\">" + result.path + "</span>";
                         document.querySelector('.traffic .access-logs .container').appendChild(div);
+                        if (result.statusCode === 200) {
+                            this.game.increaseHitCounter();
+                            this.game.giveMoneyForHit();
+                        }
                         this.game.infraManager.renderInfrastructureView();
                     }
                 };
@@ -88,6 +92,7 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
         execute: function () {
             (function (VM_TYPES) {
                 VM_TYPES[VM_TYPES["WEB_MONOLITH"] = 0] = "WEB_MONOLITH";
+                VM_TYPES[VM_TYPES["CDN"] = 1] = "CDN";
             })(VM_TYPES || (VM_TYPES = {}));
             VM = /** @class */ (function (_super) {
                 __extends(VM, _super);
@@ -104,6 +109,7 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                     _this.currentLoad = 0.0;
                     _this.currentMemory = 0.0;
                     _this.currentStorage = 0.0;
+                    _this.decreaseResourceInterval = 80;
                     _this.server = server;
                     return _this;
                 }
@@ -151,7 +157,7 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                         this.startingLoad = this.currentLoad = 0.1;
                         this.startingMemory = this.currentMemory = 0.2;
                         this.startingStorage = this.currentStorage = 0.1;
-                        this.lowerResourcesTimer = setInterval(this.lowerResourceUsage.bind(this), 100);
+                        this.lowerResourcesTimer = setInterval(this.lowerResourceUsage.bind(this), this.decreaseResourceInterval);
                     }
                     else {
                         clearInterval(this.lowerResourcesTimer);
@@ -172,16 +178,19 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                     return this.currentStorage;
                 };
                 VM.prototype.canHandle = function (route) {
+                    if (this.currentLoad > this.cpus) {
+                        return false;
+                    }
+                    else if (this.currentMemory > this.memory) {
+                        return false;
+                    }
                     switch (this.type) {
                         case VM_TYPES.WEB_MONOLITH:
                             return route.match(/.*/) !== null;
                     }
                 };
-                VM.prototype.handleRequest = function (methodName, path) {
-                    if (this.currentLoad > this.cpus) {
-                        return false;
-                    }
-                    else if (this.currentMemory > this.memory) {
+                VM.prototype.handleRequest = function (methodName, route) {
+                    if (this.canHandle(route) === false) {
                         return false;
                     }
                     this.currentLoad += 0.1;
@@ -192,11 +201,12 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                 VM.prototype.lowerResourceUsage = function () {
                     if (this.currentLoad > this.startingLoad) {
                         this.currentLoad -= 0.01;
+                        this.game.infraManager.renderInfrastructureView();
                     }
                     if (this.currentMemory > this.startingMemory) {
                         this.currentMemory -= 0.01;
+                        this.game.infraManager.renderInfrastructureView();
                     }
-                    this.game.infraManager.renderInfrastructureView();
                 };
                 return VM;
             }(BaseObject_1["default"]));
@@ -446,6 +456,9 @@ System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", 
                     document.querySelector('#memory-count').innerHTML = memory.toString() + "GB";
                     document.querySelector('#storage-count').innerHTML = storage.toString() + "GB";
                 };
+                InfraManager.prototype.updateRps = function (rps) {
+                    document.querySelector('#rps-count').innerHTML = rps.toString();
+                };
                 InfraManager.prototype.renderVmStatLine = function (statName, currentVal, maxVal, statSuffix) {
                     if (statSuffix === void 0) { statSuffix = ''; }
                     var percentage = (currentVal * 100) / maxVal;
@@ -535,12 +548,25 @@ System.register("managers/TrafficManager", ["managers/BaseManager"], function (e
         execute: function () {
             TrafficManager = /** @class */ (function (_super) {
                 __extends(TrafficManager, _super);
-                function TrafficManager() {
-                    return _super !== null && _super.apply(this, arguments) || this;
+                function TrafficManager(game) {
+                    var _this = _super.call(this, game) || this;
+                    _this.requestsPerSecTimer = null;
+                    _this.requestsPerSec = 0;
+                    _this.requestsPerSecTimer = setInterval(_this.resetAndRenderRPS.bind(_this), 1000);
+                    return _this;
                 }
+                TrafficManager.prototype.resetAndRenderRPS = function () {
+                    this.game.infraManager.updateRps(this.requestsPerSec);
+                    this.requestsPerSec = 0;
+                };
+                TrafficManager.prototype.getRequestsPerSec = function () {
+                    return this.requestsPerSec;
+                };
                 TrafficManager.prototype.generateHit = function () {
                     var method = this.getRandomMethodType();
                     var path = this.getRandomPath(method);
+                    var success = true;
+                    this.requestsPerSec += 1;
                     // Compile a list of VMs capable of handling this route
                     // We will favor microservices over web monolith where
                     // appropriate.
@@ -555,12 +581,18 @@ System.register("managers/TrafficManager", ["managers/BaseManager"], function (e
                         });
                     });
                     // Get a random VM and pass the request on to the VM for handling
-                    var vm = capableVMs[Math.floor(Math.random() * capableVMs.length)];
-                    var success = vm.handleRequest(method, path);
+                    var vm = null;
+                    if (capableVMs.length === 0) {
+                        success = false;
+                    }
+                    else {
+                        vm = capableVMs[Math.floor(Math.random() * capableVMs.length)];
+                        success = vm.handleRequest(method, path);
+                    }
                     return {
                         method: method,
                         path: path,
-                        handledBy: vm.getName(),
+                        handledBy: success ? vm.getName() : '-',
                         statusCode: success ? 200 : 500
                     };
                 };
@@ -576,15 +608,25 @@ System.register("managers/TrafficManager", ["managers/BaseManager"], function (e
                                 '/',
                                 '/about',
                                 '/jobs',
-                                '/contact-us'
+                                '/contact-us',
+                                '/static/background.png',
+                                '/static/favicon.ico',
+                                '/static/sitemap.xml'
                             ];
+                            for (var i = 1; i <= 100; i++) {
+                                paths.push("/static/img/image" + i.toString() + ".png");
+                            }
                             break;
                         case 'POST':
                             paths = [
-                                '/login',
-                                '/signup',
-                                '/help-request'
+                                '/api/login',
+                                '/api/signup',
+                                '/api/help/request',
                             ];
+                            for (var i = 1; i <= 100; i++) {
+                                paths.push("/api/help/" + i.toString() + "/save");
+                                paths.push("/api/help/" + i.toString() + "/edit");
+                            }
                             break;
                     }
                     return paths[Math.floor(Math.random() * paths.length)];
@@ -617,14 +659,15 @@ System.register("game", ["managers/EventManager", "managers/InfraManager", "mana
                     // Stats
                     this.visitCount = 0;
                     this.money = 0;
+                    this.moneyPerHit = 1;
                     this.eventManager = new EventManager_1["default"](this);
                     this.infraManager = new InfraManager_1["default"](this);
                     this.trafficManager = new TrafficManager_1["default"](this);
                     this.loadSavedGame();
                 }
-                Game.prototype.increaseVisitCount = function (increaseBy) {
-                    this.visitCount += increaseBy;
-                    document.querySelector('#visit-count').innerHTML = this.visitCount.toString();
+                Game.prototype.increaseHitCounter = function () {
+                    this.visitCount += 1;
+                    document.querySelector('#hit-count').innerHTML = this.visitCount.toString();
                 };
                 Game.prototype.loadSavedGame = function () {
                     if (localStorage.getItem('savedGame') !== null) {
@@ -632,16 +675,19 @@ System.register("game", ["managers/EventManager", "managers/InfraManager", "mana
                         return;
                     }
                     // Create a new game
-                    this.addMoney(1000);
+                    this.giveMoney(1000);
                     var dc = this.infraManager.addDataCenter();
                     var rack = dc.addRack();
                     var server = rack.addServer();
                     var vm = server.createVM(1, 1, 10, 0);
                     vm.setPoweredOn(true);
                 };
-                Game.prototype.addMoney = function (money) {
+                Game.prototype.giveMoney = function (money) {
                     this.money += money;
                     document.querySelector('#money-count').innerHTML = "$" + this.money.toString();
+                };
+                Game.prototype.giveMoneyForHit = function () {
+                    this.giveMoney(this.moneyPerHit);
                 };
                 return Game;
             }());
