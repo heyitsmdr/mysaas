@@ -8,6 +8,7 @@ enum VM_TYPES {
 
 class VM extends BaseObject {
   private server: Server;
+  private lowerResourcesTimer: any;
 
   // Saved
   private name: String;
@@ -16,6 +17,9 @@ class VM extends BaseObject {
   private storage: number = 0;
   private type: VM_TYPES = VM_TYPES.WEB_MONOLITH;
   private poweredOn: Boolean = false;
+  private startingLoad: number = 0.0;
+  private startingMemory: number = 0.0;
+  private startingStorage: number = 0.0;
   private currentLoad: number = 0.0;
   private currentMemory: number = 0.0;
   private currentStorage: number = 0.0;
@@ -75,9 +79,16 @@ class VM extends BaseObject {
 
   public setPoweredOn(powerOn: Boolean): void {
     this.poweredOn = powerOn;
-    this.currentLoad = 0.1;
-    this.currentMemory = 0.2;
-    this.currentStorage = 0.1;
+    if (powerOn === true) {
+      this.startingLoad = this.currentLoad = 0.1;
+      this.startingMemory = this.currentMemory = 0.2;
+      this.startingStorage = this.currentStorage = 0.1;
+      this.lowerResourcesTimer = setInterval(this.lowerResourceUsage.bind(this), 100);
+    } else {
+      clearInterval(this.lowerResourcesTimer);
+      this.lowerResourcesTimer = null;
+    }
+
     this.game.infraManager.renderInfrastructureView();
   }
 
@@ -95,6 +106,37 @@ class VM extends BaseObject {
 
   public getCurrentStorage(): number {
     return this.currentStorage;
+  }
+
+  public canHandle(route: String): Boolean {
+    switch (this.type) {
+      case VM_TYPES.WEB_MONOLITH:
+        return route.match(/.*/) !== null;
+    }
+  }
+
+  public handleRequest(methodName: String, path: String): Boolean {
+    if (this.currentLoad > this.cpus) {
+      return false;
+    } else if (this.currentMemory > this.memory) {
+      return false;
+    }
+    
+    this.currentLoad += 0.1;
+    this.currentMemory += 0.05;
+    this.currentStorage += 0.01;
+    
+    return true;
+  }
+
+  private lowerResourceUsage(): void {
+    if (this.currentLoad > this.startingLoad) {
+      this.currentLoad -= 0.01;
+    }
+    if (this.currentMemory > this.startingMemory) {
+      this.currentMemory -= 0.01;
+    }
+    this.game.infraManager.renderInfrastructureView();
   }
 }
 

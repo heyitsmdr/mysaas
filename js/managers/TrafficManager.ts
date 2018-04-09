@@ -6,21 +6,29 @@ class TrafficManager extends BaseManager {
     const method = this.getRandomMethodType();
     const path = this.getRandomPath(method);
 
+    // Compile a list of VMs capable of handling this route
+    // We will favor microservices over web monolith where
+    // appropriate.
     let capableVMs: Array<VM> = [];
-    
     this.game.infraManager.getDataCenters().forEach(dc => {
       dc.getAllVMs().forEach(vm => {
         if (vm.getPoweredOn() === true) {
-          capableVMs.push(vm);
+          if (vm.canHandle(path) === true) {
+            capableVMs.push(vm);
+          }
         }
       });
     });
 
+    // Get a random VM and pass the request on to the VM for handling
+    const vm: VM = capableVMs[Math.floor(Math.random() * capableVMs.length)];
+    const success = vm.handleRequest(method, path);
+
     return {
       method: method,
       path: path,
-      handledBy: 'web01',
-      statusCode: 200
+      handledBy: vm.getName(),
+      statusCode: success ? 200 : 500
     };
   }
 

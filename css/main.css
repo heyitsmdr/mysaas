@@ -102,7 +102,11 @@ body {
 }
 
 .root .traffic .access-logs .container .status-good {
-  color: #0d920d
+  color: #1ebd1e
+}
+
+.root .traffic .access-logs .container .status-bad {
+  color: #a50909
 }
 
 .root .traffic .access-logs .container .handled-by {

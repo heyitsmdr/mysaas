@@ -8,8 +8,9 @@ class EventManager extends BaseManager {
       const result: any = this.game.trafficManager.generateHit();
       const div: HTMLDivElement = document.createElement('div');
       div.className = 'pre';
-      div.innerHTML = `<span class="status-good">${result.statusCode}</span> <span class="handled-by">${result.handledBy}</span> ${result.method} <span class="path">${result.path}</span>`;
+      div.innerHTML = `<span class="status-${result.statusCode === 200 ? 'good' : 'bad'}">${result.statusCode}</span> <span class="handled-by">${result.handledBy}</span> ${result.method} <span class="path">${result.path}</span>`;
       document.querySelector('.traffic .access-logs .container').appendChild(div);
+      this.game.infraManager.renderInfrastructureView();
     }
   }
 }

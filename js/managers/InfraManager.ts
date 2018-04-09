@@ -91,7 +91,9 @@ class InfraManager extends BaseManager {
       statColor = 'warn';
     }
 
-    return `<div class="stat ${statColor}"><strong>${statName}</strong>: ${currentVal}${statSuffix} / ${maxVal}${statSuffix}</div>`;
+    const current: String = parseFloat(currentVal.toString()).toFixed(2);
+
+    return `<div class="stat ${statColor}"><strong>${statName}</strong>: ${current}${statSuffix} / ${maxVal}${statSuffix}</div>`;
   }
 
   public renderInfrastructureView(): void {
