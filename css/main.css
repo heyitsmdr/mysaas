@@ -105,6 +105,10 @@ body {
   color: #0d920d
 }
 
+.root .traffic .access-logs .container .handled-by {
+  color: rgb(13, 105, 148);
+}
+
 .root .traffic .access-logs .container .path {
   color: #aaa;
 }

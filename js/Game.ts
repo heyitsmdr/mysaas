@@ -32,7 +32,7 @@ class Game {
 
     // Create a new game
     this.addMoney(1000);
-    const dc = this.infraManager.addDatacenter();
+    const dc = this.infraManager.addDataCenter();
     const rack = dc.addRack();
     const server = rack.addServer();
     const vm = server.createVM(1, 1, 10, 0);

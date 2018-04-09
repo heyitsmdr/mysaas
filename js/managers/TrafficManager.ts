@@ -1,15 +1,25 @@
 import BaseManager from './BaseManager';
+import { VM } from '../VM';
 
 class TrafficManager extends BaseManager {
   public generateHit(): Object {
     const method = this.getRandomMethodType();
     const path = this.getRandomPath(method);
 
-    console.log(method, path);
+    let capableVMs: Array<VM> = [];
+    
+    this.game.infraManager.getDataCenters().forEach(dc => {
+      dc.getAllVMs().forEach(vm => {
+        if (vm.getPoweredOn() === true) {
+          capableVMs.push(vm);
+        }
+      });
+    });
 
     return {
       method: method,
       path: path,
+      handledBy: 'web01',
       statusCode: 200
     };
   }

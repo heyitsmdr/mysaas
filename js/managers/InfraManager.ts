@@ -10,11 +10,15 @@ class InfraManager extends BaseManager {
     super(game);
   }
 
-  public addDatacenter(): DataCenter {
+  public addDataCenter(): DataCenter {
     const dc: DataCenter = new DataCenter(this.game);
     this.datacenters.push(dc);
     this.updateDataCenterCount();
     return dc;
+  }
+
+  public getDataCenters(): Array<DataCenter> {
+    return this.datacenters;
   }
 
   public updateDataCenterCount(): void {
