@@ -60,6 +60,14 @@ body {
   color: #eee;
 }
 
+.stats #visit-count {
+  color: #ff0;
+}
+
+.stats #money-count {
+  color: #0f0;
+}
+
 .root {
   display: flex;
   height: 100%;
@@ -86,10 +94,19 @@ body {
   display: flex;
   margin: 10px;
   font-size: 14px;
+  overflow: hidden;
 }
 
 .root .traffic .access-logs .container {
   align-self: flex-end;
+}
+
+.root .traffic .access-logs .container .status-good {
+  color: #0d920d
+}
+
+.root .traffic .access-logs .container .path {
+  color: #aaa;
 }
 
 .root .game {
@@ -117,6 +134,32 @@ body {
   border: 1px solid #888;
   padding: 20px;
   margin: 0 10px 10px 0;
+  text-align: center;
+}
+
+.root .game .infrastructure .server .vm .name {
+  padding-bottom: 5px;
+}
+
+.root .game .infrastructure .server .vm .stat {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.root .game .infrastructure .server .vm .stat.good {
+  color: #0f0;
+}
+
+.root .game .infrastructure .server .vm .stat.good-dark {
+  color: #0d920d;
+}
+
+.root .game .infrastructure .server .vm .stat.warn {
+  color: #ff0;
+}
+
+.root .game .infrastructure .server .vm .stat.crit {
+  color: #f00;
 }
 
 .root .game .infrastructure .server .vm.empty {
