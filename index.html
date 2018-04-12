@@ -4,7 +4,8 @@
     <title>mySaaS</title>
     <link href='css/main.css' rel='stylesheet' type='text/css' />
     <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400i,700,700i" rel="stylesheet">
-    <script type="text/javascript" src="system.js"></script>
+    <script type="text/javascript" src="vendor/system.js"></script>
+    <script type="text/javascript" src="vendor/fontawesome-all.min.js"></script>
     <script type="text/javascript" src="build/game.js"></script>
   </head>
   <body>
@@ -28,13 +29,15 @@
       <span class="value" id="memory-count">0GB</span>
       <span class="name">Storage</span>
       <span class="value" id="storage-count">0GB</span> |
-      <span class="name">Req/s</span>
-      <span class="value" id="rps-count">0</span>
+      <span class="name">200-Req/s</span>
+      <span class="value" id="success-rps-count">0</span>
+      <span class="name">503-Req/s</span>
+      <span class="value" id="failure-rps-count">0</span>
     </div>
     <div class="root">
       <div class="traffic">
         <div>
-            <span class="button large" onmousedown="Game.eventManager.emit('visit_website')">Visit Website</span>  
+            <span class="button large" onmousedown="Game.eventManager.emit('visit_website')"><i class="fas fa-mouse-pointer"></i>Visit Website</span>  
         </div>
         <div class="access-logs-header">Traffic Logs</div>
         <div class="access-logs">
@@ -43,11 +46,58 @@
       </div>
       <div class="game">
         <div class="header">
-          <div class="left">Your Infrastructure</div>
-          <div class="right"><span class="selected">Infrastructure</span> | DataCenter | Bank</div>
+          <div id="view-name" class="left"><i class="fas fa-server"></i>Your Infrastructure</div>
+          <div class="right">
+            <span id="view-link-infra" class="view-links selected" onclick="Game.eventManager.emit('switch_view', 'infra')">Infrastructure</span> |
+            <span id="view-link-dc" class="view-links" onclick="Game.eventManager.emit('switch_view', 'dc')">DataCenters</span> |
+            <span id="view-link-bank" class="view-links" onclick="Game.eventManager.emit('switch_view', 'bank')">Bank</span> |
+            <span id="view-link-shop" class="view-links" onclick="Game.eventManager.emit('switch_view', 'shop')">Shop</span>
+          </div>
         </div>
-        <div class="infrastructure">
+        <div class="game-view infrastructure">
           <div class="container"></div>
+        </div>
+        <div class="game-view dc hidden">
+          <div class="container">This is your DC.</div>
+        </div>
+        <div class="game-view bank hidden">
+          <div class="container">This is the Bank.</div>
+        </div>
+        <div class="game-view shop hidden">
+          <div class="container">
+            <div class="shop-section">
+              <div class="header">General</div>
+              <div class="shop-container general"></div>
+            </div>
+            <div class="shop-section">
+                <div class="header">Marketing</div>
+                <div class="shop-container marketing">
+                  <div class="item">
+                    <div class="icon">
+                      <i class="fas fa-users"></i>
+                    </div>
+                    <div class="about">
+                      <div class="name">Tell My Friends I</div>
+                      <div class="desc">This will increase traffic to your website by <span>+1/s</span>.</div>
+                    </div>
+                    <div class="actions">
+                      ACQUIRED
+                    </div>
+                  </div>
+                </div>
+            </div>
+          </div>
+        </div>
+        <div class="game-view ssh hidden">
+          <div class="container">
+            <div class="last-login"></div>
+            <div class="uptime"></div>
+            <div class="actions">
+              <div class="header">Actions:</div>
+              <div class="container"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <script>

@@ -1,10 +1,24 @@
 import BaseObject from './BaseObject';
 import Rack from './Rack';
 import Server from './Server';
-import { VM } from './VM';
+import VM from './VM';
+import { ISavedDataCenter } from './interfaces/ISavedGame';
 
 class DataCenter extends BaseObject {
   private racks: Array<Rack> = [];
+
+  public save(): ISavedDataCenter {
+    return {
+      racks: this.racks.map(rack => rack.save())
+    }
+  }
+  
+  public load(savedDc: ISavedDataCenter): void {
+    savedDc.racks.forEach(savedRack => {
+      const rack = this.addRack();
+      rack.load(savedRack);
+    });
+  }
 
   public addRack(): Rack {
     const rack = new Rack(this.game);

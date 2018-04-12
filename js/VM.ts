@@ -1,6 +1,7 @@
 import BaseObject from './BaseObject';
 import Game from './Game';
 import Server from './Server';
+import { ISavedVm } from './interfaces/ISavedGame';
 
 enum VM_TYPES {
   WEB_MONOLITH,
@@ -18,6 +19,7 @@ class VM extends BaseObject {
   private storage: number = 0;
   private type: VM_TYPES = VM_TYPES.WEB_MONOLITH;
   private poweredOn: Boolean = false;
+  private poweredOnAt: number = 0;
   private startingLoad: number = 0.0;
   private startingMemory: number = 0.0;
   private startingStorage: number = 0.0;
@@ -25,11 +27,7 @@ class VM extends BaseObject {
   private currentMemory: number = 0.0;
   private currentStorage: number = 0.0;
   private decreaseResourceInterval: number = 80;
-
-  constructor(game: Game, server: Server) {
-    super(game);
-    this.server = server;
-  }
+  private lastSshLogin: number = 0;
 
   public static getShortType(vmType: VM_TYPES) {
     switch (vmType) {
@@ -38,6 +36,45 @@ class VM extends BaseObject {
       default:
         return 'unknown';
     }
+  }
+
+  constructor(game: Game, server: Server) {
+    super(game);
+    this.server = server;
+  }
+
+  public save(): ISavedVm {
+    return {
+      name: this.name,
+      cpus: this.cpus,
+      memory: this.memory,
+      storage: this.storage,
+      type: this.type,
+      poweredOn: this.poweredOn,
+      poweredOnAt: this.poweredOnAt,
+      startingLoad: this.startingLoad,
+      startingMemory: this.startingMemory,
+      startingStorage: this.startingStorage,
+      currentLoad: this.currentLoad,
+      currentMemory: this.currentMemory,
+      currentStorage: this.currentStorage,
+      decreaseResourceInterval: this.decreaseResourceInterval,
+      lastSshLogin: this.lastSshLogin
+    }
+  }
+
+  public load(savedVm: ISavedVm): void {
+    this.name = savedVm.name;
+    this.decreaseResourceInterval = savedVm.decreaseResourceInterval;
+    this.lastSshLogin = savedVm.lastSshLogin;
+    // cpus, memory, storage and type are all set already via setResourceLimits
+    this.setPoweredOn(savedVm.poweredOn);
+    // starting + current load, memory and cpu are all set above via setPoweredOn
+    // however, we want to override current stats with what was saved
+    this.poweredOnAt = savedVm.poweredOnAt;
+    this.currentLoad = savedVm.currentLoad;
+    this.currentMemory = savedVm.currentMemory;
+    this.currentStorage = savedVm.currentStorage;
   }
 
   public getServer(): Server {
@@ -84,9 +121,14 @@ class VM extends BaseObject {
     if (powerOn === true) {
       this.startingLoad = this.currentLoad = 0.1;
       this.startingMemory = this.currentMemory = 0.2;
-      this.startingStorage = this.currentStorage = 0.1;
+      if (this.currentStorage === 0) {
+        this.startingStorage = this.currentStorage = 0.1;
+      }
+      this.poweredOnAt = Date.now();
       this.lowerResourcesTimer = setInterval(this.lowerResourceUsage.bind(this), this.decreaseResourceInterval);
     } else {
+      this.currentLoad = 0;
+      this.currentMemory = 0;
       clearInterval(this.lowerResourcesTimer);
       this.lowerResourcesTimer = null;
     }
@@ -135,6 +177,35 @@ class VM extends BaseObject {
     return true;
   }
 
+  public updateSshLoginTime(): void {
+    this.lastSshLogin = Date.now();
+  }
+
+  public getLastSshLogin(): String {
+    if (this.lastSshLogin > 0) {
+      return new Date(this.lastSshLogin).toString();
+    }
+
+    return 'Never';
+  }
+
+  public getUptime(): String {
+    if (this.getPoweredOn() === false) {
+      return 'Uptime: 0s';
+    }
+
+    const uptimeMs = Date.now() - this.poweredOnAt;
+    const uptimeSecs = uptimeMs / 1000;
+
+    return `Uptime: ${uptimeSecs} seconds`;
+  }
+
+  public resetStorage(): number {
+    this.currentStorage = this.startingStorage;
+    this.game.infraManager.renderInfrastructureView();
+    return this.currentStorage;
+  }
+
   private lowerResourceUsage(): void {
     if (this.currentLoad > this.startingLoad) {
       this.currentLoad -= 0.01;
@@ -147,4 +218,5 @@ class VM extends BaseObject {
   }
 }
 
-export { VM_TYPES, VM };
+export default VM;
+export { VM_TYPES  };

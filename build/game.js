@@ -25,46 +25,9 @@ System.register("managers/BaseManager", [], function (exports_1, context_1) {
         }
     };
 });
-System.register("managers/EventManager", ["managers/BaseManager"], function (exports_2, context_2) {
+System.register("BaseObject", [], function (exports_2, context_2) {
     "use strict";
     var __moduleName = context_2 && context_2.id;
-    var BaseManager_1, EventManager;
-    return {
-        setters: [
-            function (BaseManager_1_1) {
-                BaseManager_1 = BaseManager_1_1;
-            }
-        ],
-        execute: function () {
-            EventManager = /** @class */ (function (_super) {
-                __extends(EventManager, _super);
-                function EventManager() {
-                    return _super !== null && _super.apply(this, arguments) || this;
-                }
-                EventManager.prototype.emit = function (eventName) {
-                    console.log("[emit] " + eventName);
-                    if (eventName === 'visit_website') {
-                        var result = this.game.trafficManager.generateHit();
-                        var div = document.createElement('div');
-                        div.className = 'pre';
-                        div.innerHTML = "<span class=\"status-" + (result.statusCode === 200 ? 'good' : 'bad') + "\">" + result.statusCode + "</span> <span class=\"handled-by\">" + result.handledBy + "</span> " + result.method + " <span class=\"path\">" + result.path + "</span>";
-                        document.querySelector('.traffic .access-logs .container').appendChild(div);
-                        if (result.statusCode === 200) {
-                            this.game.increaseHitCounter();
-                            this.game.giveMoneyForHit();
-                        }
-                        this.game.infraManager.renderInfrastructureView();
-                    }
-                };
-                return EventManager;
-            }(BaseManager_1["default"]));
-            exports_2("default", EventManager);
-        }
-    };
-});
-System.register("BaseObject", [], function (exports_3, context_3) {
-    "use strict";
-    var __moduleName = context_3 && context_3.id;
     var BaseObject;
     return {
         setters: [],
@@ -75,18 +38,148 @@ System.register("BaseObject", [], function (exports_3, context_3) {
                 }
                 return BaseObject;
             }());
-            exports_3("default", BaseObject);
+            exports_2("default", BaseObject);
         }
     };
 });
-System.register("VM", ["BaseObject"], function (exports_4, context_4) {
+System.register("interfaces/ISavedGame", [], function (exports_3, context_3) {
+    "use strict";
+    var __moduleName = context_3 && context_3.id;
+    return {
+        setters: [],
+        execute: function () {
+        }
+    };
+});
+System.register("Server", ["BaseObject", "VM"], function (exports_4, context_4) {
     "use strict";
     var __moduleName = context_4 && context_4.id;
-    var BaseObject_1, VM_TYPES, VM;
+    var BaseObject_1, VM_1, MAX_CPU, MAX_MEM, MAX_STORAGE, Server;
     return {
         setters: [
             function (BaseObject_1_1) {
                 BaseObject_1 = BaseObject_1_1;
+            },
+            function (VM_1_1) {
+                VM_1 = VM_1_1;
+            }
+        ],
+        execute: function () {
+            MAX_CPU = 32; // Core count
+            MAX_MEM = 64; // GB
+            MAX_STORAGE = 100; // GB
+            Server = /** @class */ (function (_super) {
+                __extends(Server, _super);
+                function Server(game) {
+                    var _this = _super.call(this, game) || this;
+                    _this.vms = [];
+                    // Saved
+                    _this.name = 'server00';
+                    _this.name = _this.game.infraManager.getNextServerName();
+                    return _this;
+                }
+                Server.prototype.save = function () {
+                    return {
+                        name: this.name,
+                        vms: this.vms.map(function (vm) { return vm.save(); })
+                    };
+                };
+                Server.prototype.load = function (savedServer) {
+                    var _this = this;
+                    this.name = savedServer.name;
+                    savedServer.vms.forEach(function (savedVm) {
+                        var vm = _this.createVM(savedVm.cpus, savedVm.memory, savedVm.storage, savedVm.type);
+                        vm.load(savedVm);
+                    });
+                };
+                Server.prototype.createVM = function (cpus, memory, storage, type) {
+                    if ((this.getAllocatedCpus() + cpus) > MAX_CPU) {
+                        return null;
+                    }
+                    else if ((this.getAllocatedMemory() + memory) > MAX_MEM) {
+                        return null;
+                    }
+                    else if ((this.getAllocatedStorage() + storage) > MAX_STORAGE) {
+                        return null;
+                    }
+                    var vm = new VM_1["default"](this.game, this);
+                    this.vms.push(vm);
+                    vm.setResourceLimits(cpus, memory, storage);
+                    vm.setType(type);
+                    this.game.infraManager.updateVMCount();
+                    this.game.infraManager.updateResourceCount();
+                    this.game.infraManager.renderInfrastructureView();
+                    return vm;
+                };
+                Server.prototype.modifyVM = function (vm, cpus, memory, storage) {
+                    var newAllocatedCpus = (this.getAllocatedCpus() - vm.getAllocatedCpus()) + cpus;
+                    var newAllocatedMemory = (this.getAllocatedMemory() - vm.getAllocatedMemory()) + memory;
+                    var newAllocatedStorage = (this.getAllocatedStorage() - vm.getAllocatedStorage()) + storage;
+                    if (newAllocatedCpus > MAX_CPU || newAllocatedMemory > MAX_MEM || newAllocatedStorage > MAX_STORAGE) {
+                        return false;
+                    }
+                    vm.setResourceLimits(cpus, memory, storage);
+                    this.game.infraManager.updateResourceCount();
+                    this.game.infraManager.renderInfrastructureView();
+                    return true;
+                };
+                Server.prototype.getVMs = function () {
+                    return this.vms;
+                };
+                Server.prototype.getAllocatedCpus = function () {
+                    var cpus = 0;
+                    this.vms.forEach(function (vm) { return cpus += vm.getAllocatedCpus(); });
+                    return cpus;
+                };
+                Server.prototype.getAllocatedMemory = function () {
+                    var memory = 0;
+                    this.vms.forEach(function (vm) { return memory += vm.getAllocatedMemory(); });
+                    return memory;
+                };
+                Server.prototype.getAllocatedStorage = function () {
+                    var storage = 0;
+                    this.vms.forEach(function (vm) { return storage += vm.getAllocatedStorage(); });
+                    return storage;
+                };
+                Server.prototype.getCpuUsage = function () {
+                    return this.getAllocatedCpus() + "/" + MAX_CPU;
+                };
+                Server.prototype.getMemoryUsage = function () {
+                    return this.getAllocatedMemory() + "GB/" + MAX_MEM + "GB";
+                };
+                Server.prototype.getStorageUsage = function () {
+                    return this.getAllocatedStorage() + "GB/" + MAX_STORAGE + "GB";
+                };
+                Server.prototype.getName = function () {
+                    return this.name;
+                };
+                Server.prototype.destroyVm = function (vmName) {
+                    var originalVmCount = this.vms.length;
+                    this.vms = this.vms.filter(function (vm) {
+                        return !(vm.getName() === vmName);
+                    });
+                    if (this.vms.length !== originalVmCount) {
+                        this.game.infraManager.updateVMCount();
+                        this.game.infraManager.updateResourceCount();
+                        this.game.infraManager.renderInfrastructureView();
+                        return true;
+                    }
+                    return false;
+                };
+                return Server;
+            }(BaseObject_1["default"]));
+            exports_4("default", Server);
+        }
+    };
+});
+System.register("VM", ["BaseObject"], function (exports_5, context_5) {
+    "use strict";
+    var __moduleName = context_5 && context_5.id;
+    var BaseObject_2, VM_TYPES, VM;
+    return {
+        setters: [
+            function (BaseObject_2_1) {
+                BaseObject_2 = BaseObject_2_1;
             }
         ],
         execute: function () {
@@ -103,6 +196,7 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                     _this.storage = 0;
                     _this.type = VM_TYPES.WEB_MONOLITH;
                     _this.poweredOn = false;
+                    _this.poweredOnAt = 0;
                     _this.startingLoad = 0.0;
                     _this.startingMemory = 0.0;
                     _this.startingStorage = 0.0;
@@ -110,6 +204,7 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                     _this.currentMemory = 0.0;
                     _this.currentStorage = 0.0;
                     _this.decreaseResourceInterval = 80;
+                    _this.lastSshLogin = 0;
                     _this.server = server;
                     return _this;
                 }
@@ -120,6 +215,38 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                         default:
                             return 'unknown';
                     }
+                };
+                VM.prototype.save = function () {
+                    return {
+                        name: this.name,
+                        cpus: this.cpus,
+                        memory: this.memory,
+                        storage: this.storage,
+                        type: this.type,
+                        poweredOn: this.poweredOn,
+                        poweredOnAt: this.poweredOnAt,
+                        startingLoad: this.startingLoad,
+                        startingMemory: this.startingMemory,
+                        startingStorage: this.startingStorage,
+                        currentLoad: this.currentLoad,
+                        currentMemory: this.currentMemory,
+                        currentStorage: this.currentStorage,
+                        decreaseResourceInterval: this.decreaseResourceInterval,
+                        lastSshLogin: this.lastSshLogin
+                    };
+                };
+                VM.prototype.load = function (savedVm) {
+                    this.name = savedVm.name;
+                    this.decreaseResourceInterval = savedVm.decreaseResourceInterval;
+                    this.lastSshLogin = savedVm.lastSshLogin;
+                    // cpus, memory, storage and type are all set already via setResourceLimits
+                    this.setPoweredOn(savedVm.poweredOn);
+                    // starting + current load, memory and cpu are all set above via setPoweredOn
+                    // however, we want to override current stats with what was saved
+                    this.poweredOnAt = savedVm.poweredOnAt;
+                    this.currentLoad = savedVm.currentLoad;
+                    this.currentMemory = savedVm.currentMemory;
+                    this.currentStorage = savedVm.currentStorage;
                 };
                 VM.prototype.getServer = function () {
                     return this.server;
@@ -156,10 +283,15 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                     if (powerOn === true) {
                         this.startingLoad = this.currentLoad = 0.1;
                         this.startingMemory = this.currentMemory = 0.2;
-                        this.startingStorage = this.currentStorage = 0.1;
+                        if (this.currentStorage === 0) {
+                            this.startingStorage = this.currentStorage = 0.1;
+                        }
+                        this.poweredOnAt = Date.now();
                         this.lowerResourcesTimer = setInterval(this.lowerResourceUsage.bind(this), this.decreaseResourceInterval);
                     }
                     else {
+                        this.currentLoad = 0;
+                        this.currentMemory = 0;
                         clearInterval(this.lowerResourcesTimer);
                         this.lowerResourcesTimer = null;
                     }
@@ -198,6 +330,28 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                     this.currentStorage += 0.01;
                     return true;
                 };
+                VM.prototype.updateSshLoginTime = function () {
+                    this.lastSshLogin = Date.now();
+                };
+                VM.prototype.getLastSshLogin = function () {
+                    if (this.lastSshLogin > 0) {
+                        return new Date(this.lastSshLogin).toString();
+                    }
+                    return 'Never';
+                };
+                VM.prototype.getUptime = function () {
+                    if (this.getPoweredOn() === false) {
+                        return 'Uptime: 0s';
+                    }
+                    var uptimeMs = Date.now() - this.poweredOnAt;
+                    var uptimeSecs = uptimeMs / 1000;
+                    return "Uptime: " + uptimeSecs + " seconds";
+                };
+                VM.prototype.resetStorage = function () {
+                    this.currentStorage = this.startingStorage;
+                    this.game.infraManager.renderInfrastructureView();
+                    return this.currentStorage;
+                };
                 VM.prototype.lowerResourceUsage = function () {
                     if (this.currentLoad > this.startingLoad) {
                         this.currentLoad -= 0.01;
@@ -209,86 +363,282 @@ System.register("VM", ["BaseObject"], function (exports_4, context_4) {
                     }
                 };
                 return VM;
-            }(BaseObject_1["default"]));
-            exports_4("VM", VM);
+            }(BaseObject_2["default"]));
+            exports_5("default", VM);
         }
     };
 });
-System.register("Server", ["BaseObject", "VM"], function (exports_5, context_5) {
+System.register("managers/EventManager", ["managers/BaseManager"], function (exports_6, context_6) {
     "use strict";
-    var __moduleName = context_5 && context_5.id;
-    var BaseObject_2, VM_1, MAX_CPU, MAX_MEM, MAX_STORAGE, Server;
+    var __moduleName = context_6 && context_6.id;
+    var BaseManager_1, EventManager;
     return {
         setters: [
-            function (BaseObject_2_1) {
-                BaseObject_2 = BaseObject_2_1;
-            },
-            function (VM_1_1) {
-                VM_1 = VM_1_1;
+            function (BaseManager_1_1) {
+                BaseManager_1 = BaseManager_1_1;
             }
         ],
         execute: function () {
-            MAX_CPU = 32; // Core count
-            MAX_MEM = 64; // GB
-            MAX_STORAGE = 400; // GB
-            Server = /** @class */ (function (_super) {
-                __extends(Server, _super);
-                function Server(game) {
-                    var _this = _super.call(this, game) || this;
-                    _this.vms = [];
-                    _this.name = 'server00';
-                    _this.name = _this.game.infraManager.getNextServerName();
-                    return _this;
+            EventManager = /** @class */ (function (_super) {
+                __extends(EventManager, _super);
+                function EventManager() {
+                    return _super !== null && _super.apply(this, arguments) || this;
                 }
-                Server.prototype.createVM = function (cpus, memory, storage, type) {
-                    if ((this.getAllocatedCpus() + cpus) > MAX_CPU) {
-                        return null;
+                EventManager.prototype.emit = function (eventName, eventParameter) {
+                    if (eventParameter === void 0) { eventParameter = ''; }
+                    console.log("[emit] " + eventName + " [" + eventParameter + "]");
+                    switch (eventName) {
+                        case 'switch_view':
+                            this.handleSwitchView(eventParameter);
+                            break;
+                        case 'visit_website':
+                            this.handleVisitWebsite();
+                            break;
+                        case 'toggle_vm_power':
+                            this.handleToggleVmPower(eventParameter);
+                            break;
+                        case 'delete_vm':
+                            this.handleDeleteVm(eventParameter);
+                            break;
+                        case 'create_vm':
+                            this.handleCreateVm(eventParameter);
+                            break;
+                        case 'edit_vm':
+                            this.handleEditVm(eventParameter);
+                            break;
+                        case 'ssh_vm':
+                            this.handleSshVm(eventParameter);
+                            break;
+                        case 'close_ssh':
+                            this.handleCloseSsh();
+                            break;
+                        case 'vm_delete_logs':
+                            this.handleDeleteVmLogs(eventParameter);
+                            break;
+                        case 'shop_purchase':
+                            this.handleShopPurchase(eventParameter);
+                            break;
+                        default:
+                            console.log('Invalid event emitted', eventName, eventParameter);
                     }
-                    else if ((this.getAllocatedMemory() + memory) > MAX_MEM) {
-                        return null;
+                };
+                EventManager.prototype.handleSwitchView = function (viewName) {
+                    // Reset
+                    var gameViewDivs = document.querySelectorAll('.game-view');
+                    for (var i = 0; i < gameViewDivs.length; i++) {
+                        gameViewDivs[i].classList.add('hidden');
                     }
-                    else if ((this.getAllocatedStorage() + storage) > MAX_STORAGE) {
-                        return null;
+                    var viewLinkSpans = document.querySelectorAll('.view-links');
+                    for (var i = 0; i < viewLinkSpans.length; i++) {
+                        viewLinkSpans[i].classList.remove('selected');
                     }
-                    var vm = new VM_1.VM(this.game, this);
-                    this.vms.push(vm);
-                    vm.setResourceLimits(cpus, memory, storage);
-                    vm.setType(type);
-                    this.game.infraManager.updateVMCount();
-                    this.game.infraManager.updateResourceCount();
+                    switch (viewName) {
+                        case 'infra':
+                            document.querySelector('.game .infrastructure').classList.remove('hidden');
+                            document.querySelector('#view-link-infra').classList.add('selected');
+                            document.querySelector('#view-name').innerHTML = '<i class="fas fa-server"></i>Your Infrastructure';
+                            this.game.infraManager.renderInfrastructureView();
+                            break;
+                        case 'dc':
+                            document.querySelector('.game .dc').classList.remove('hidden');
+                            document.querySelector('#view-link-dc').classList.add('selected');
+                            document.querySelector('#view-name').innerHTML = '<i class="fas fa-building"></i>Your DataCenters';
+                            break;
+                        case 'bank':
+                            document.querySelector('.game .bank').classList.remove('hidden');
+                            document.querySelector('#view-link-bank').classList.add('selected');
+                            document.querySelector('#view-name').innerHTML = '<i class="fas fa-piggy-bank"></i>The Bank';
+                            break;
+                        case 'shop':
+                            document.querySelector('.game .shop').classList.remove('hidden');
+                            document.querySelector('#view-link-shop').classList.add('selected');
+                            document.querySelector('#view-name').innerHTML = '<i class="fas fa-shopping-bag"></i>The Shop';
+                            this.game.shopManager.renderShopView();
+                            break;
+                        case 'ssh':
+                            document.querySelector('.game .ssh').classList.remove('hidden');
+                            break;
+                    }
+                };
+                EventManager.prototype.handleVisitWebsite = function () {
+                    var result = this.game.trafficManager.generateHit();
+                    var div = document.createElement('div');
+                    div.className = 'pre';
+                    div.innerHTML = "<span class=\"status-" + (result.statusCode === 200 ? 'good' : 'bad') + "\">" + result.statusCode + "</span> <span class=\"handled-by\">" + result.handledBy + "</span> " + result.method + " <span class=\"path\">" + result.path + "</span>";
+                    document.querySelector('.traffic .access-logs .container').appendChild(div);
+                    if (result.statusCode === 200) {
+                        this.game.increaseHitCounter();
+                        this.game.giveMoneyForHit();
+                    }
                     this.game.infraManager.renderInfrastructureView();
-                    return vm;
                 };
-                Server.prototype.getVMs = function () {
-                    return this.vms;
+                EventManager.prototype.handleToggleVmPower = function (vmName) {
+                    var dcs = this.game.infraManager.getDataCenters();
+                    for (var dci = 0; dci < dcs.length; dci++) {
+                        var vms = dcs[dci].getAllVMs();
+                        for (var vmi = 0; vmi < vms.length; vmi++) {
+                            if (vms[vmi].getName() === vmName) {
+                                vms[vmi].setPoweredOn(!vms[vmi].getPoweredOn());
+                                break;
+                            }
+                        }
+                    }
+                    this.game.infraManager.renderInfrastructureView();
                 };
-                Server.prototype.getAllocatedCpus = function () {
-                    var cpus = 0;
-                    this.vms.forEach(function (vm) { return cpus += vm.getAllocatedCpus(); });
-                    return cpus;
+                EventManager.prototype.handleDeleteVm = function (vmName) {
+                    var dcs = this.game.infraManager.getDataCenters();
+                    for (var dci = 0; dci < dcs.length; dci++) {
+                        var vms = dcs[dci].getAllVMs();
+                        for (var vmi = 0; vmi < vms.length; vmi++) {
+                            if (vms[vmi].getName() === vmName) {
+                                var server = vms[vmi].getServer();
+                                server.destroyVm(vmName);
+                            }
+                        }
+                    }
                 };
-                Server.prototype.getAllocatedMemory = function () {
-                    var memory = 0;
-                    this.vms.forEach(function (vm) { return memory += vm.getAllocatedMemory(); });
-                    return memory;
+                EventManager.prototype.handleCreateVm = function (serverName) {
+                    var vmType = prompt('What type of VM do you want to provision?\n\nValid choies:\n  - web');
+                    if (!vmType) {
+                        return;
+                    }
+                    var dcs = this.game.infraManager.getDataCenters();
+                    for (var dci = 0; dci < dcs.length; dci++) {
+                        var servers = dcs[dci].getAllServers();
+                        for (var si = 0; si < servers.length; si++) {
+                            if (servers[si].getName() === serverName) {
+                                switch (vmType.toLowerCase()) {
+                                    case 'web':
+                                        servers[si].createVM(1, 1, 10, 0);
+                                        break;
+                                    default:
+                                        alert('You have entered an invalid type. Nothing was created.');
+                                        return;
+                                }
+                                break;
+                            }
+                        }
+                    }
                 };
-                Server.prototype.getAllocatedStorage = function () {
-                    var storage = 0;
-                    this.vms.forEach(function (vm) { return storage += vm.getAllocatedStorage(); });
-                    return storage;
+                EventManager.prototype.handleEditVm = function (vmName) {
+                    var dcs = this.game.infraManager.getDataCenters();
+                    for (var dci = 0; dci < dcs.length; dci++) {
+                        var vms = dcs[dci].getAllVMs();
+                        for (var vmi = 0; vmi < vms.length; vmi++) {
+                            if (vms[vmi].getName() === vmName) {
+                                var vm = vms[vmi];
+                                if (vm.getPoweredOn() === true) {
+                                    alert('You cannot edit a VM that is powered on.');
+                                    return;
+                                }
+                                var editResource = prompt('Which resource would?>i you like to edit?\n\nValid choices:\n  - cpu\n  - memory\n  - storage');
+                                if (!editResource) {
+                                    return;
+                                }
+                                switch (editResource.toLowerCase()) {
+                                    case 'cpu':
+                                        var newCpu = prompt("What would you like to set the CPU cores to?\n\nCurrently Allocated: " + vm.getAllocatedCpus());
+                                        var newCpuNumber = Number(newCpu);
+                                        if (newCpuNumber > 0) {
+                                            var success = vm.getServer().modifyVM(vm, newCpuNumber, vm.getAllocatedMemory(), vm.getAllocatedStorage());
+                                            if (!success) {
+                                                alert('The re-allocation of cpu was unsuccessful. Nothing was modified.');
+                                            }
+                                        }
+                                        break;
+                                    case 'memory':
+                                        var newMemory = prompt("What would you like to set the Memory (in GB) to?\n\nCurrently Allocated: " + vm.getAllocatedMemory() + "GB");
+                                        var newMemoryNumber = Number(newMemory.toLowerCase().replace('gb', ''));
+                                        if (newMemoryNumber > 0) {
+                                            var success = vm.getServer().modifyVM(vm, vm.getAllocatedCpus(), newMemoryNumber, vm.getAllocatedStorage());
+                                            if (!success) {
+                                                alert('The re-allocation of memory was unsuccessful. Nothing was modified.');
+                                            }
+                                        }
+                                        break;
+                                    case 'storage':
+                                        var newStorage = prompt("What would you like to set the Storage (in GB) to?\n\nCurrently Allocated: " + vm.getAllocatedStorage() + "GB");
+                                        var newStorageNumber = Number(newStorage.toLowerCase().replace('gb', ''));
+                                        if (newStorageNumber > 0) {
+                                            var success = vm.getServer().modifyVM(vm, vm.getAllocatedCpus(), vm.getAllocatedStorage(), newStorageNumber);
+                                            if (!success) {
+                                                alert('The re-allocation of storage was unsuccessful. Nothing was modified.');
+                                            }
+                                        }
+                                        break;
+                                    default:
+                                        alert('You have entered an invalid resource type. Nothing was modified.');
+                                }
+                            }
+                        }
+                    }
                 };
-                Server.prototype.getName = function () {
-                    return this.name;
+                EventManager.prototype.handleSshVm = function (vmName) {
+                    var dcs = this.game.infraManager.getDataCenters();
+                    for (var dci = 0; dci < dcs.length; dci++) {
+                        var vms = dcs[dci].getAllVMs();
+                        for (var vmi = 0; vmi < vms.length; vmi++) {
+                            if (vms[vmi].getName() === vmName) {
+                                var vm = vms[vmi];
+                                this.handleSwitchView('ssh');
+                                document.querySelector('#view-name').innerHTML = "<i class=\"fas fa-terminal\"></i>SSH: " + vmName;
+                                document.querySelector('.game .ssh .last-login').innerHTML = "Last login: " + vm.getLastSshLogin();
+                                document.querySelector('.game .ssh .uptime').innerHTML = "<br>Uptime is " + vm.getUptime();
+                                var actionsContainerHtml = '';
+                                actionsContainerHtml += "<div class=\"action\" onclick=\"Game.eventManager.emit('vm_delete_logs', '" + vm.getName() + "')\">Delete Logs</div>";
+                                actionsContainerHtml += "<div class=\"action\" onclick=\"Game.eventManager.emit('close_ssh')\">Exit</div>";
+                                document.querySelector('.game .ssh .actions .container').innerHTML = actionsContainerHtml;
+                                vm.updateSshLoginTime();
+                            }
+                        }
+                    }
                 };
-                return Server;
-            }(BaseObject_2["default"]));
-            exports_5("default", Server);
+                EventManager.prototype.handleCloseSsh = function () {
+                    this.handleSwitchView('infra');
+                };
+                EventManager.prototype.handleDeleteVmLogs = function (vmName) {
+                    var dcs = this.game.infraManager.getDataCenters();
+                    for (var dci = 0; dci < dcs.length; dci++) {
+                        var vms = dcs[dci].getAllVMs();
+                        for (var vmi = 0; vmi < vms.length; vmi++) {
+                            if (vms[vmi].getName() === vmName) {
+                                var vm = vms[vmi];
+                                var newStorage = vm.resetStorage();
+                                alert("You reset the storage on " + vm.getName() + " back to " + newStorage.toString() + "GB!");
+                            }
+                        }
+                    }
+                };
+                EventManager.prototype.handleShopPurchase = function (itemName) {
+                    var item = this.game.shopManager.getItem(itemName);
+                    if (!item) {
+                        return;
+                    }
+                    else if (item.canAfford() === false) {
+                        alert('You cannot afford that shop item.');
+                        return;
+                    }
+                    else if (item.hasRequirements() === false) {
+                        alert('You do not meet the minimum requirements to purchase that shop item.');
+                        return;
+                    }
+                    else if (item.isPurchased() === true) {
+                        return;
+                    }
+                    var cost = item.getCost();
+                    this.game.takeMoney(cost);
+                    item.setAsPurchased();
+                    this.game.shopManager.renderShopView();
+                };
+                return EventManager;
+            }(BaseManager_1["default"]));
+            exports_6("default", EventManager);
         }
     };
 });
-System.register("Rack", ["BaseObject", "Server"], function (exports_6, context_6) {
+System.register("Rack", ["BaseObject", "Server"], function (exports_7, context_7) {
     "use strict";
-    var __moduleName = context_6 && context_6.id;
+    var __moduleName = context_7 && context_7.id;
     var BaseObject_3, Server_1, Rack;
     return {
         setters: [
@@ -307,6 +657,18 @@ System.register("Rack", ["BaseObject", "Server"], function (exports_6, context_6
                     _this.servers = [];
                     return _this;
                 }
+                Rack.prototype.save = function () {
+                    return {
+                        servers: this.servers.map(function (server) { return server.save(); })
+                    };
+                };
+                Rack.prototype.load = function (savedRack) {
+                    var _this = this;
+                    savedRack.servers.forEach(function (savedServer) {
+                        var server = _this.addServer();
+                        server.load(savedServer);
+                    });
+                };
                 Rack.prototype.addServer = function () {
                     var server = new Server_1["default"](this.game);
                     this.servers.push(server);
@@ -319,13 +681,13 @@ System.register("Rack", ["BaseObject", "Server"], function (exports_6, context_6
                 };
                 return Rack;
             }(BaseObject_3["default"]));
-            exports_6("default", Rack);
+            exports_7("default", Rack);
         }
     };
 });
-System.register("DataCenter", ["BaseObject", "Rack"], function (exports_7, context_7) {
+System.register("DataCenter", ["BaseObject", "Rack"], function (exports_8, context_8) {
     "use strict";
-    var __moduleName = context_7 && context_7.id;
+    var __moduleName = context_8 && context_8.id;
     var BaseObject_4, Rack_1, DataCenter;
     return {
         setters: [
@@ -344,6 +706,18 @@ System.register("DataCenter", ["BaseObject", "Rack"], function (exports_7, conte
                     _this.racks = [];
                     return _this;
                 }
+                DataCenter.prototype.save = function () {
+                    return {
+                        racks: this.racks.map(function (rack) { return rack.save(); })
+                    };
+                };
+                DataCenter.prototype.load = function (savedDc) {
+                    var _this = this;
+                    savedDc.racks.forEach(function (savedRack) {
+                        var rack = _this.addRack();
+                        rack.load(savedRack);
+                    });
+                };
                 DataCenter.prototype.addRack = function () {
                     var rack = new Rack_1["default"](this.game);
                     this.racks.push(rack);
@@ -371,13 +745,13 @@ System.register("DataCenter", ["BaseObject", "Rack"], function (exports_7, conte
                 };
                 return DataCenter;
             }(BaseObject_4["default"]));
-            exports_7("default", DataCenter);
+            exports_8("default", DataCenter);
         }
     };
 });
-System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", "VM"], function (exports_8, context_8) {
+System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", "VM"], function (exports_9, context_9) {
     "use strict";
-    var __moduleName = context_8 && context_8.id;
+    var __moduleName = context_9 && context_9.id;
     var BaseManager_2, DataCenter_1, VM_2, InfraManager;
     return {
         setters: [
@@ -399,6 +773,19 @@ System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", 
                     _this.datacenters = [];
                     return _this;
                 }
+                InfraManager.prototype.save = function () {
+                    return {
+                        datacenters: this.datacenters.map(function (dc) { return dc.save(); })
+                    };
+                };
+                InfraManager.prototype.load = function (savedInfra) {
+                    var _this = this;
+                    savedInfra.datacenters.forEach(function (savedDc) {
+                        var dc = _this.addDataCenter();
+                        dc.load(savedDc);
+                    });
+                    this.renderInfrastructureView();
+                };
                 InfraManager.prototype.addDataCenter = function () {
                     var dc = new DataCenter_1["default"](this.game);
                     this.datacenters.push(dc);
@@ -456,8 +843,9 @@ System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", 
                     document.querySelector('#memory-count').innerHTML = memory.toString() + "GB";
                     document.querySelector('#storage-count').innerHTML = storage.toString() + "GB";
                 };
-                InfraManager.prototype.updateRps = function (rps) {
-                    document.querySelector('#rps-count').innerHTML = rps.toString();
+                InfraManager.prototype.updateRps = function (successRps, failureRps) {
+                    document.querySelector('#success-rps-count').innerHTML = successRps.toString();
+                    document.querySelector('#failure-rps-count').innerHTML = failureRps.toString();
                 };
                 InfraManager.prototype.renderVmStatLine = function (statName, currentVal, maxVal, statSuffix) {
                     if (statSuffix === void 0) { statSuffix = ''; }
@@ -478,7 +866,8 @@ System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", 
                     this.datacenters.forEach(function (dc) {
                         dc.getRacks().forEach(function (rack) {
                             rack.getServers().forEach(function (server) {
-                                container += "<div class=\"server-name\">" + server.getName() + "</div>";
+                                container += "<div class=\"server-name\">" + server.getName();
+                                container += "<span class=\"specs\">[ Cores: " + server.getCpuUsage() + ", Mem: " + server.getMemoryUsage() + ", Storage: " + server.getStorageUsage() + " ]</span></div>";
                                 container += "<div class=\"server\">";
                                 server.getVMs().forEach(function (vm) {
                                     container += "<div class=\"vm\">";
@@ -487,8 +876,19 @@ System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", 
                                     container += _this.renderVmStatLine('Load', vm.getCurrentLoad(), vm.getAllocatedCpus());
                                     container += _this.renderVmStatLine('Mem', vm.getCurrentMemory(), vm.getAllocatedMemory(), 'GB');
                                     container += _this.renderVmStatLine('Storage', vm.getCurrentStorage(), vm.getAllocatedStorage(), 'GB');
+                                    container += "<div class=\"actions\">";
+                                    if (vm.getPoweredOn() === false) {
+                                        container += "<span class=\"link\" onmousedown=\"Game.eventManager.emit('edit_vm', '" + vm.getName() + "')\">Edit</span> | ";
+                                    }
+                                    else {
+                                        container += "<span class=\"link\" onmousedown=\"Game.eventManager.emit('ssh_vm', '" + vm.getName() + "')\">SSH</span> | ";
+                                    }
+                                    container += "<span class=\"link\" onmousedown=\"Game.eventManager.emit('toggle_vm_power', '" + vm.getName() + "')\">Power " + (vm.getPoweredOn() ? 'Down' : 'Up') + "</span> | ";
+                                    container += "<span class=\"link\" onmousedown=\"Game.eventManager.emit('delete_vm', '" + vm.getName() + "')\">Delete</span>";
+                                    container += "</div>";
                                     container += "</div>";
                                 });
+                                container += "<div class=\"vm empty\" onmousedown=\"Game.eventManager.emit('create_vm', '" + server.getName() + "')\">+</div>";
                                 container += "</div>";
                             });
                         });
@@ -519,8 +919,8 @@ System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", 
                         });
                     });
                     for (var i = 1; i <= 99; i++) {
-                        if (vmNames.indexOf(VM_2.VM.getShortType(vmType) + this.zeroPad(i, 2)) === -1) {
-                            return VM_2.VM.getShortType(vmType) + this.zeroPad(i, 2).toString();
+                        if (vmNames.indexOf(VM_2["default"].getShortType(vmType) + this.zeroPad(i, 2)) === -1) {
+                            return VM_2["default"].getShortType(vmType) + this.zeroPad(i, 2).toString();
                         }
                     }
                     return null;
@@ -531,13 +931,13 @@ System.register("managers/InfraManager", ["managers/BaseManager", "DataCenter", 
                 };
                 return InfraManager;
             }(BaseManager_2["default"]));
-            exports_8("default", InfraManager);
+            exports_9("default", InfraManager);
         }
     };
 });
-System.register("managers/TrafficManager", ["managers/BaseManager"], function (exports_9, context_9) {
+System.register("managers/TrafficManager", ["managers/BaseManager"], function (exports_10, context_10) {
     "use strict";
-    var __moduleName = context_9 && context_9.id;
+    var __moduleName = context_10 && context_10.id;
     var BaseManager_3, TrafficManager;
     return {
         setters: [
@@ -551,22 +951,20 @@ System.register("managers/TrafficManager", ["managers/BaseManager"], function (e
                 function TrafficManager(game) {
                     var _this = _super.call(this, game) || this;
                     _this.requestsPerSecTimer = null;
-                    _this.requestsPerSec = 0;
+                    _this.requestsPerSecSuccess = 0;
+                    _this.requestsPerSecFailure = 0;
                     _this.requestsPerSecTimer = setInterval(_this.resetAndRenderRPS.bind(_this), 1000);
                     return _this;
                 }
                 TrafficManager.prototype.resetAndRenderRPS = function () {
-                    this.game.infraManager.updateRps(this.requestsPerSec);
-                    this.requestsPerSec = 0;
-                };
-                TrafficManager.prototype.getRequestsPerSec = function () {
-                    return this.requestsPerSec;
+                    this.game.infraManager.updateRps(this.requestsPerSecSuccess, this.requestsPerSecFailure);
+                    this.requestsPerSecSuccess = 0;
+                    this.requestsPerSecFailure = 0;
                 };
                 TrafficManager.prototype.generateHit = function () {
                     var method = this.getRandomMethodType();
                     var path = this.getRandomPath(method);
                     var success = true;
-                    this.requestsPerSec += 1;
                     // Compile a list of VMs capable of handling this route
                     // We will favor microservices over web monolith where
                     // appropriate.
@@ -589,11 +987,17 @@ System.register("managers/TrafficManager", ["managers/BaseManager"], function (e
                         vm = capableVMs[Math.floor(Math.random() * capableVMs.length)];
                         success = vm.handleRequest(method, path);
                     }
+                    if (success) {
+                        this.requestsPerSecSuccess += 1;
+                    }
+                    else {
+                        this.requestsPerSecFailure += 1;
+                    }
                     return {
                         method: method,
                         path: path,
                         handledBy: success ? vm.getName() : '-',
-                        statusCode: success ? 200 : 500
+                        statusCode: success ? 200 : 503
                     };
                 };
                 TrafficManager.prototype.getRandomMethodType = function () {
@@ -633,14 +1037,200 @@ System.register("managers/TrafficManager", ["managers/BaseManager"], function (e
                 };
                 return TrafficManager;
             }(BaseManager_3["default"]));
-            exports_9("default", TrafficManager);
+            exports_10("default", TrafficManager);
         }
     };
 });
-System.register("game", ["managers/EventManager", "managers/InfraManager", "managers/TrafficManager"], function (exports_10, context_10) {
+System.register("ShopItem", [], function (exports_11, context_11) {
     "use strict";
-    var __moduleName = context_10 && context_10.id;
-    var EventManager_1, InfraManager_1, TrafficManager_1, Game;
+    var __moduleName = context_11 && context_11.id;
+    var SHOP_CATEGORY, ShopItem;
+    return {
+        setters: [],
+        execute: function () {
+            (function (SHOP_CATEGORY) {
+                SHOP_CATEGORY[SHOP_CATEGORY["GENERAL"] = 0] = "GENERAL";
+                SHOP_CATEGORY[SHOP_CATEGORY["MARKETING"] = 1] = "MARKETING";
+            })(SHOP_CATEGORY || (SHOP_CATEGORY = {}));
+            exports_11("SHOP_CATEGORY", SHOP_CATEGORY);
+            ShopItem = /** @class */ (function () {
+                function ShopItem(manager, category, name, cost, description, icon, requirements) {
+                    if (requirements === void 0) { requirements = []; }
+                    this.requirements = [];
+                    // Saved
+                    this.purchased = false;
+                    this.manager = manager;
+                    this.name = name;
+                    this.cost = cost;
+                    this.category = category;
+                    this.description = description;
+                    this.icon = icon;
+                    if (requirements.length > 0) {
+                        this.parseRequirements(requirements);
+                    }
+                }
+                ShopItem.prototype.save = function () {
+                    return {
+                        name: this.name,
+                        purchased: this.purchased
+                    };
+                };
+                ShopItem.prototype.parseRequirements = function (requirements) {
+                    var _this = this;
+                    requirements.forEach(function (req) {
+                        var item = _this.manager.getItem(req);
+                        if (item instanceof ShopItem) {
+                            _this.requirements.push(item);
+                        }
+                    });
+                };
+                ShopItem.prototype.getName = function () {
+                    return this.name;
+                };
+                ShopItem.prototype.getDescription = function (parseDescription) {
+                    if (parseDescription === void 0) { parseDescription = false; }
+                    if (parseDescription) {
+                        return this.description.replace(/\[/g, '<span>').replace(/\]/g, '</span>');
+                    }
+                    return this.description;
+                };
+                ShopItem.prototype.getIcon = function () {
+                    return this.icon;
+                };
+                ShopItem.prototype.getCost = function () {
+                    return this.cost;
+                };
+                ShopItem.prototype.isInCategory = function (category) {
+                    return this.category === category;
+                };
+                ShopItem.prototype.getRequirements = function () {
+                    return this.requirements;
+                };
+                ShopItem.prototype.hasRequirements = function () {
+                    for (var i = 0; i < this.requirements.length; i++) {
+                        if (this.requirements[i].isPurchased() === false) {
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+                ShopItem.prototype.canAfford = function () {
+                    return this.cost <= this.manager.game.getMoney();
+                };
+                ShopItem.prototype.isPurchased = function () {
+                    return this.purchased;
+                };
+                ShopItem.prototype.setAsPurchased = function () {
+                    this.purchased = true;
+                };
+                return ShopItem;
+            }());
+            exports_11("default", ShopItem);
+        }
+    };
+});
+System.register("managers/ShopManager", ["managers/BaseManager", "ShopItem"], function (exports_12, context_12) {
+    "use strict";
+    var __moduleName = context_12 && context_12.id;
+    var BaseManager_4, ShopItem_1, ShopManager;
+    return {
+        setters: [
+            function (BaseManager_4_1) {
+                BaseManager_4 = BaseManager_4_1;
+            },
+            function (ShopItem_1_1) {
+                ShopItem_1 = ShopItem_1_1;
+            }
+        ],
+        execute: function () {
+            ShopManager = /** @class */ (function (_super) {
+                __extends(ShopManager, _super);
+                function ShopManager(game) {
+                    var _this = _super.call(this, game) || this;
+                    _this.items = [];
+                    _this.populateItems();
+                    return _this;
+                }
+                ShopManager.prototype.save = function () {
+                    return {
+                        items: this.items.map(function (item) { return item.save(); })
+                    };
+                };
+                ShopManager.prototype.load = function (savedShop) {
+                    var _this = this;
+                    savedShop.items.forEach(function (item) {
+                        var itemObj = _this.getItem(item.name);
+                        if (itemObj && item.purchased === true) {
+                            itemObj.setAsPurchased();
+                        }
+                    });
+                };
+                ShopManager.prototype.populateItems = function () {
+                    // General
+                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.GENERAL, 'CDN', 500, 'Research how to create a [CDN] vm type. This will handle all [/static] routes.', 'fab fa-maxcdn', []));
+                    // Marketing
+                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Tell My Friends I', 100, 'You tell your friends about your new website and gain [+1/s] in traffic.', 'fas fa-users', []));
+                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Tell My Friends II', 1000, 'You tell your friends about your new website and gain [+5/s] in traffic.', 'fas fa-users', ['Tell My Friends I']));
+                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Podcast I', 2000, 'asldfksdflj asldkfj sldfkj sdlfkj sflkj sflksj flksjdf slkdfj sdlfkj sflksdfj You advertise on a podcast and gain [+15/s] in traffic.', 'fas fa-podcast', []));
+                };
+                ShopManager.prototype.getItem = function (itemName) {
+                    for (var i = 0; i < this.items.length; i++) {
+                        if (this.items[i].getName() === itemName) {
+                            return this.items[i];
+                        }
+                    }
+                    return null;
+                };
+                ShopManager.prototype.renderShopView = function () {
+                    var _this = this;
+                    var cats = [
+                        { name: 'general', category: ShopItem_1.SHOP_CATEGORY.GENERAL },
+                        { name: 'marketing', category: ShopItem_1.SHOP_CATEGORY.MARKETING }
+                    ];
+                    cats.forEach(function (cat) {
+                        var divContainer = document.querySelector(".game .shop .shop-container." + cat.name);
+                        var filteredItems = _this.items.filter(function (item) { return item.isInCategory(cat.category) && item.hasRequirements(); });
+                        var divHtml = '';
+                        filteredItems.forEach(function (item) {
+                            divHtml += "<div class=\"item " + (item.isPurchased() ? 'purchased' : '') + "\" onclick=\"Game.eventManager.emit('shop_purchase', '" + item.getName() + "')\">";
+                            divHtml += "<div class=\"icon\"><i class=\"" + item.getIcon() + "\"></i></div>";
+                            divHtml += "<div class=\"about\">";
+                            divHtml += "<div class=\"name\">" + item.getName() + "</div>";
+                            divHtml += "<div class=\"desc\">" + item.getDescription(true) + "</div>";
+                            if (item.getRequirements().length > 0) {
+                                divHtml += "<div class=\"req\">Requires [";
+                                item.getRequirements().forEach(function (req) {
+                                    divHtml += "<span>" + req.getName() + "</span>";
+                                });
+                                divHtml += "]</div>";
+                            }
+                            divHtml += "</div>";
+                            divHtml += "<div class=\"actions " + (item.isPurchased() ? 'purchased' : '') + "\">";
+                            if (!item.isPurchased()) {
+                                divHtml += '<div class="purchase">';
+                                divHtml += '<div>BUY</div>';
+                                divHtml += "<div class=\"purchase-amount " + (item.canAfford() ? '' : 'red') + "\">[ $" + item.getCost() + " ]</div>";
+                                divHtml += '</div>';
+                            }
+                            else {
+                                divHtml += '<div class="purchased"><i class="fas fa-check"></i></div>';
+                            }
+                            divHtml += "</div>";
+                            divHtml += '</div>';
+                        });
+                        divContainer.innerHTML = divHtml;
+                    });
+                };
+                return ShopManager;
+            }(BaseManager_4["default"]));
+            exports_12("default", ShopManager);
+        }
+    };
+});
+System.register("game", ["managers/EventManager", "managers/InfraManager", "managers/TrafficManager", "managers/ShopManager"], function (exports_13, context_13) {
+    "use strict";
+    var __moduleName = context_13 && context_13.id;
+    var EventManager_1, InfraManager_1, TrafficManager_1, ShopManager_1, Game;
     return {
         setters: [
             function (EventManager_1_1) {
@@ -651,27 +1241,46 @@ System.register("game", ["managers/EventManager", "managers/InfraManager", "mana
             },
             function (TrafficManager_1_1) {
                 TrafficManager_1 = TrafficManager_1_1;
+            },
+            function (ShopManager_1_1) {
+                ShopManager_1 = ShopManager_1_1;
             }
         ],
         execute: function () {
             Game = /** @class */ (function () {
                 function Game() {
-                    // Stats
+                    // Saved
                     this.visitCount = 0;
                     this.money = 0;
                     this.moneyPerHit = 1;
+                    // Private
+                    this.saveTimer = null;
                     this.eventManager = new EventManager_1["default"](this);
                     this.infraManager = new InfraManager_1["default"](this);
                     this.trafficManager = new TrafficManager_1["default"](this);
+                    this.shopManager = new ShopManager_1["default"](this);
                     this.loadSavedGame();
+                    this.saveTimer = setInterval(this.saveGame.bind(this), 1000);
                 }
-                Game.prototype.increaseHitCounter = function () {
-                    this.visitCount += 1;
-                    document.querySelector('#hit-count').innerHTML = this.visitCount.toString();
+                Game.prototype.saveGame = function () {
+                    var savedGame = {
+                        lastSaveTime: Date.now(),
+                        infrastructure: this.infraManager.save(),
+                        visitCount: this.visitCount,
+                        money: this.money,
+                        moneyPerHit: this.moneyPerHit,
+                        shop: this.shopManager.save()
+                    };
+                    localStorage.setItem('savedGame', JSON.stringify(savedGame));
                 };
                 Game.prototype.loadSavedGame = function () {
                     if (localStorage.getItem('savedGame') !== null) {
-                        // Set up a saved game..
+                        var savedGame = JSON.parse(localStorage.getItem('savedGame'));
+                        this.increaseHitCounter(savedGame.visitCount);
+                        this.giveMoney(savedGame.money);
+                        this.moneyPerHit = savedGame.moneyPerHit;
+                        this.infraManager.load(savedGame.infrastructure);
+                        this.shopManager.load(savedGame.shop);
                         return;
                     }
                     // Create a new game
@@ -682,16 +1291,31 @@ System.register("game", ["managers/EventManager", "managers/InfraManager", "mana
                     var vm = server.createVM(1, 1, 10, 0);
                     vm.setPoweredOn(true);
                 };
+                Game.prototype.increaseHitCounter = function (amount) {
+                    if (amount === void 0) { amount = 1; }
+                    this.visitCount += amount;
+                    document.querySelector('#hit-count').innerHTML = this.visitCount.toString();
+                };
                 Game.prototype.giveMoney = function (money) {
                     this.money += money;
+                    this.updateMoney();
+                };
+                Game.prototype.takeMoney = function (money) {
+                    this.money -= money;
+                    this.updateMoney();
+                };
+                Game.prototype.updateMoney = function () {
                     document.querySelector('#money-count').innerHTML = "$" + this.money.toString();
                 };
                 Game.prototype.giveMoneyForHit = function () {
                     this.giveMoney(this.moneyPerHit);
                 };
+                Game.prototype.getMoney = function () {
+                    return this.money;
+                };
                 return Game;
             }());
-            exports_10("default", Game);
+            exports_13("default", Game);
             window['Game'] = new Game();
         }
     };

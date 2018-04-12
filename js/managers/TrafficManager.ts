@@ -1,10 +1,11 @@
 import BaseManager from './BaseManager';
-import { VM } from '../VM';
+import VM from '../VM';
 import Game from '../Game';
 
 class TrafficManager extends BaseManager {
   private requestsPerSecTimer: any = null;
-  private requestsPerSec: number = 0;
+  private requestsPerSecSuccess: number = 0;
+  private requestsPerSecFailure: number = 0;
 
   constructor(game: Game) {
     super(game);
@@ -12,20 +13,15 @@ class TrafficManager extends BaseManager {
   }
 
   public resetAndRenderRPS(): void {
-    this.game.infraManager.updateRps(this.requestsPerSec);
-    this.requestsPerSec = 0;
-  }
-
-  public getRequestsPerSec(): number {
-    return this.requestsPerSec;
+    this.game.infraManager.updateRps(this.requestsPerSecSuccess, this.requestsPerSecFailure);
+    this.requestsPerSecSuccess = 0;
+    this.requestsPerSecFailure = 0;
   }
 
   public generateHit(): Object {
     const method: String = this.getRandomMethodType();
     const path: String = this.getRandomPath(method);
     let success: Boolean = true;
-
-    this.requestsPerSec += 1;
 
     // Compile a list of VMs capable of handling this route
     // We will favor microservices over web monolith where
@@ -50,11 +46,17 @@ class TrafficManager extends BaseManager {
       success = vm.handleRequest(method, path);
     }
 
+    if (success) {
+      this.requestsPerSecSuccess += 1;
+    } else {
+      this.requestsPerSecFailure += 1;
+    }
+
     return {
       method: method,
       path: path,
       handledBy: success ? vm.getName() : '-',
-      statusCode: success ? 200 : 500
+      statusCode: success ? 200 : 503
     };
   }
 

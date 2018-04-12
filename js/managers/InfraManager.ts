@@ -1,13 +1,29 @@
 import BaseManager from './BaseManager';
 import DataCenter from '../DataCenter';
 import Game from '../Game';
-import { VM_TYPES, VM } from '../VM';
+import VM, { VM_TYPES } from '../VM';
+import ISavedGame, { ISavedInfrastructure } from '../interfaces/ISavedGame';
 
 class InfraManager extends BaseManager {
   private datacenters: Array<DataCenter> = [];
 
   constructor(game: Game) {
     super(game);
+  }
+
+  public save(): ISavedInfrastructure {
+    return {
+      datacenters: this.datacenters.map(dc => dc.save())
+    }
+  }
+
+  public load(savedInfra: ISavedInfrastructure): void {
+    savedInfra.datacenters.forEach(savedDc => {
+      const dc = this.addDataCenter();
+      dc.load(savedDc);
+    });
+
+    this.renderInfrastructureView();
   }
 
   public addDataCenter(): DataCenter {
@@ -81,8 +97,9 @@ class InfraManager extends BaseManager {
     document.querySelector('#storage-count').innerHTML = `${storage.toString()}GB`;
   }
 
-  public updateRps(rps: number): void {
-    document.querySelector('#rps-count').innerHTML = rps.toString();
+  public updateRps(successRps: number, failureRps: number): void {
+    document.querySelector('#success-rps-count').innerHTML = successRps.toString();
+    document.querySelector('#failure-rps-count').innerHTML = failureRps.toString();
   }
 
   private renderVmStatLine(statName: String, currentVal: number, maxVal: number, statSuffix: String = ''): String {
@@ -106,7 +123,8 @@ class InfraManager extends BaseManager {
     this.datacenters.forEach(dc => {
       dc.getRacks().forEach(rack => {
         rack.getServers().forEach(server => {
-          container += `<div class="server-name">${server.getName()}</div>`;
+          container += `<div class="server-name">${server.getName()}`;
+          container += `<span class="specs">[ Cores: ${server.getCpuUsage()}, Mem: ${server.getMemoryUsage()}, Storage: ${server.getStorageUsage()} ]</span></div>`;
           container += `<div class="server">`;
           server.getVMs().forEach(vm => {
             container += `<div class="vm">`;
@@ -115,8 +133,18 @@ class InfraManager extends BaseManager {
               container += this.renderVmStatLine('Load', vm.getCurrentLoad(), vm.getAllocatedCpus());
               container += this.renderVmStatLine('Mem', vm.getCurrentMemory(), vm.getAllocatedMemory(), 'GB');
               container += this.renderVmStatLine('Storage', vm.getCurrentStorage(), vm.getAllocatedStorage(), 'GB');
+              container += `<div class="actions">`;
+                if (vm.getPoweredOn() === false) {
+                  container += `<span class="link" onmousedown="Game.eventManager.emit('edit_vm', '${vm.getName()}')">Edit</span> | `;
+                } else {
+                  container += `<span class="link" onmousedown="Game.eventManager.emit('ssh_vm', '${vm.getName()}')">SSH</span> | `;
+                }
+                container += `<span class="link" onmousedown="Game.eventManager.emit('toggle_vm_power', '${vm.getName()}')">Power ${vm.getPoweredOn() ? 'Down' : 'Up'}</span> | `;
+                container += `<span class="link" onmousedown="Game.eventManager.emit('delete_vm', '${vm.getName()}')">Delete</span>`;
+              container += `</div>`;
             container += `</div>`;
           });
+          container += `<div class="vm empty" onmousedown="Game.eventManager.emit('create_vm', '${server.getName()}')">+</div>`;
           container += `</div>`;
         });
       });

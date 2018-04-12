@@ -22,9 +22,14 @@ body {
   border: 2px solid #cecece;
   color: #dcdbdb;
   display: inline-block;
-  border-radius: 3px;
+  border-radius: 5px;
   padding: 5px 15px;
   user-select: none;
+  text-align: center;
+}
+
+.button svg {
+  margin-right: 10px;
 }
 
 .pre {
@@ -39,6 +44,7 @@ body {
 
 .button.large {
   padding: 15px 60px;
+  font-size: 18px;
 }
 
 /**
@@ -64,8 +70,13 @@ body {
   color: #ff0;
 }
 
-.stats #money-count {
+.stats #money-count,
+.stats #success-rps-count {
   color: #0f0;
+}
+
+.stats #failure-rps-count {
+  color: #c91919;
 }
 
 .root {
@@ -76,6 +87,7 @@ body {
 .root .traffic {
   text-align: center;
   flex-basis: 300px;
+  min-width: 300px;
   padding: 10px 0 0 0;
   display: flex;
   flex-direction: column;
@@ -131,6 +143,11 @@ body {
   font-weight: 600;
   margin-bottom: 20px;
   flex-basis: 50%;
+  font-size: 20px;
+}
+
+.root .game .header .left svg {
+  margin-right: 5px;
 }
 
 .root .game .header .right {
@@ -139,29 +156,50 @@ body {
   color: #888;
 }
 
+.root .game .header .right .view-links {
+  opacity: 0.8;
+}
+
+.root .game .header .right .view-links:hover {
+  cursor: pointer;
+  opacity: 1;
+}
+
 .root .game .header .right .selected {
   color: #fff;
+  opacity: 1;
+}
+
+.root .game .hidden {
+  display: none;
 }
 
 .root .game .infrastructure .server-name {
   padding-bottom: 5px;
-  text-transform: up
+}
+
+.root .game .infrastructure .server-name .specs {
+  padding-left: 10px;
+  color: #636363;
 }
 
 .root .game .infrastructure .server {
   display: flex;
   margin-left: 5px;
+  flex-wrap: wrap;
 }
 
 .root .game .infrastructure .server .vm {
   border: 1px solid #888;
   padding: 20px;
   margin: 0 10px 10px 0;
+  font-size: 12px;
   text-align: center;
 }
 
 .root .game .infrastructure .server .vm .name {
   padding-bottom: 5px;
+  font-size: 16px;
 }
 
 .root .game .infrastructure .server .vm .stat {
@@ -185,6 +223,170 @@ body {
   color: #f00;
 }
 
+.root .game .infrastructure .server .vm .actions {
+  margin-top: 5px;
+}
+
+.root .game .infrastructure .server .vm .actions .link {
+  opacity: 0.8;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.root .game .infrastructure .server .vm .actions .link:hover {
+  cursor: pointer;
+  opacity: 1;
+}
+
 .root .game .infrastructure .server .vm.empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30px;
+  color: rgb(110, 110, 110);
   border: 1px dashed #444;
+  min-width: 100px;
+  min-height: 80px;
+}
+
+.root .game .infrastructure .server .vm.empty:hover {
+  cursor: pointer;
+  color: rgb(145, 145, 145);
+  border: 1px dashed rgb(114, 114, 114);
+}
+
+.root .game .ssh .actions {
+  margin-top: 20px;
+}
+
+.root .game .ssh .actions .header {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 18px;
+  padding-bottom: 5px;
+}
+
+.root .game .ssh .actions .action {
+  color: #737373;
+  padding: 5px;
+}
+
+.root .game .ssh .actions .action:hover {
+  color: #a5a5a5;
+  cursor: pointer;
+}
+
+.root .game .shop .container {
+  display: flex;
+}
+
+.root .game .shop .container .shop-section {
+  flex-basis: 50%;
+}
+
+.root .game .shop .container .shop-section:not(:last-child) {
+  margin-right: 20px;
+}
+
+.root .game .shop .container .shop-section .header {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+
+.root .game .shop .container .shop-section .shop-container .item {
+  border: 2px solid #4c4c4c;
+  display: flex;
+  opacity: 0.8;
+  margin-bottom: 10px;
+}
+
+.root .game .shop .container .shop-section .shop-container .item.purchased {
+  background-color: #042305;
+  border: 2px solid #0e9919;
+}
+
+.root .game .shop .container .shop-section .shop-container .item:hover {
+  border: 2px solid #797979;
+  opacity: 1;
+  cursor: pointer;
+}
+
+.root .game .shop .container .shop-section .shop-container .item.purchased:hover {
+  border: 2px solid #1fd82d;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .icon {
+  flex-basis: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30px;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .about {
+  flex-grow: 1;
+  padding: 10px 0;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .about .name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .about .desc {
+  color: #7d7d7d;
+  margin-top: 5px;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .about .req {
+  margin-top: 5px;
+}
+.root .game .shop .container .shop-section .shop-container .item .about .req span {
+  color: #dcdc4d;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .about .desc span {
+  color: #dcdc4d;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .actions {
+  background-color: #272727;
+  flex-basis: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .actions.purchased {
+  background-color: #183e1a;
+  color: #949494;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .actions .purchase {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .actions .purchased {
+  color: #0f0;
+  font-size: 30px;
+}
+.root .game .shop .container .shop-section .shop-container .item .actions .purchase-amount {
+  font-size: 14px;
+  color: #0f0;
+  padding-top: 5px;
+}
+
+.root .game .shop .container .shop-section .shop-container .item .actions .purchase-amount.red {
+  color: #f00;
 }
