@@ -3,8 +3,8 @@ import VM, { VM_TYPES } from './VM';
 import Game from './Game';
 import { ISavedServer } from './interfaces/ISavedGame';
 
-const MAX_CPU = 32;      // Core count
-const MAX_MEM = 64;      // GB
+const MAX_CPU = 8;      // Core count
+const MAX_MEM = 32;      // GB
 const MAX_STORAGE = 100; // GB
 
 class Server extends BaseObject {

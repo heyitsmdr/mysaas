@@ -18,7 +18,7 @@ class TrafficManager extends BaseManager {
     this.requestsPerSecFailure = 0;
   }
 
-  public generateHit(): Object {
+  public generateHit(): void {
     const method: String = this.getRandomMethodType();
     const path: String = this.getRandomPath(method);
     let success: Boolean = true;
@@ -52,12 +52,25 @@ class TrafficManager extends BaseManager {
       this.requestsPerSecFailure += 1;
     }
 
-    return {
-      method: method,
-      path: path,
-      handledBy: success ? vm.getName() : '-',
-      statusCode: success ? 200 : 503
-    };
+    const div: HTMLDivElement = document.createElement('div');
+    div.className = 'pre';
+    div.innerHTML = `<span class="status-${success ? 'good' : 'bad'}">${success ? '200' : '503'}</span> <span class="handled-by">${success ? vm.getName() : '-'}</span> ${method} <span class="path">${path}</span>`;
+    document.querySelector('.traffic .access-logs .container').appendChild(div);
+
+    // Cleanup if needed
+    const logsRendered = document.querySelectorAll('.traffic .access-logs .container > div');
+    if (logsRendered.length >= 250) {
+      for (let i = 0; i < 50; i++) {
+        document.querySelector('.traffic .access-logs .container').removeChild(logsRendered[i]);
+      }
+    }
+
+    if (success) {
+      this.game.increaseHitCounter();
+      this.game.giveMoneyForHit();
+    }
+
+    this.game.infraManager.renderInfrastructureView();
   }
 
   private getRandomMethodType(): String {

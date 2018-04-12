@@ -7,6 +7,10 @@ export enum SHOP_CATEGORY {
   MARKETING
 }
 
+export enum ITEM_EFFECT {
+  INCREASE_TRAFFIC
+}
+
 export default class ShopItem {
   private manager: ShopManager;
   private category: SHOP_CATEGORY;
@@ -15,17 +19,19 @@ export default class ShopItem {
   private description: String;
   private icon: String;
   private requirements: Array<ShopItem> = [];
+  private effects: String;
 
   // Saved
   private purchased: Boolean = false;
 
-  constructor(manager: ShopManager, category: SHOP_CATEGORY, name: String, cost: number, description: String, icon: String, requirements: Array<String> = []) {
+  constructor(manager: ShopManager, category: SHOP_CATEGORY, name: String, cost: number, description: String, icon: String, effectString: String, requirements: Array<String> = []) {
     this.manager = manager;
     this.name = name;
     this.cost = cost;
     this.category = category;
     this.description = description;
     this.icon = icon;
+    this.effects = effectString;
     if (requirements.length > 0) {
       this.parseRequirements(requirements);
     }
@@ -95,5 +101,18 @@ export default class ShopItem {
 
   public setAsPurchased(): void {
     this.purchased = true;
+  }
+
+  public activateEffects(): void {
+    this.effects.split(';').forEach(effect => {
+      const effectName = effect.split(':')[0];
+      const effectValue = effect.split(':')[1];
+
+      switch (effectName) {
+        case 'traffic':
+          this.manager.game.increaseTrafficPerSec(Number(effectValue.replace('+', '')));
+          break;
+      }
+    });
   }
 }

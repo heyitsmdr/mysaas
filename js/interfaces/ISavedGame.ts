@@ -50,5 +50,6 @@ export default interface ISavedGame {
   visitCount: number,
   money: number,
   moneyPerHit: number,
-  shop: ISavedShop
+  shop: ISavedShop,
+  trafficPerSec: number
 }

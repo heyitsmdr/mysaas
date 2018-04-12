@@ -65,8 +65,8 @@ System.register("Server", ["BaseObject", "VM"], function (exports_4, context_4) 
             }
         ],
         execute: function () {
-            MAX_CPU = 32; // Core count
-            MAX_MEM = 64; // GB
+            MAX_CPU = 8; // Core count
+            MAX_MEM = 32; // GB
             MAX_STORAGE = 100; // GB
             Server = /** @class */ (function (_super) {
                 __extends(Server, _super);
@@ -316,6 +316,9 @@ System.register("VM", ["BaseObject"], function (exports_5, context_5) {
                     else if (this.currentMemory > this.memory) {
                         return false;
                     }
+                    else if (this.currentStorage > this.storage) {
+                        return false;
+                    }
                     switch (this.type) {
                         case VM_TYPES.WEB_MONOLITH:
                             return route.match(/.*/) !== null;
@@ -354,11 +357,11 @@ System.register("VM", ["BaseObject"], function (exports_5, context_5) {
                 };
                 VM.prototype.lowerResourceUsage = function () {
                     if (this.currentLoad > this.startingLoad) {
-                        this.currentLoad -= 0.01;
+                        this.currentLoad -= (0.01 * this.currentLoad);
                         this.game.infraManager.renderInfrastructureView();
                     }
                     if (this.currentMemory > this.startingMemory) {
-                        this.currentMemory -= 0.01;
+                        this.currentMemory -= (0.01 * this.currentMemory);
                         this.game.infraManager.renderInfrastructureView();
                     }
                 };
@@ -461,16 +464,7 @@ System.register("managers/EventManager", ["managers/BaseManager"], function (exp
                     }
                 };
                 EventManager.prototype.handleVisitWebsite = function () {
-                    var result = this.game.trafficManager.generateHit();
-                    var div = document.createElement('div');
-                    div.className = 'pre';
-                    div.innerHTML = "<span class=\"status-" + (result.statusCode === 200 ? 'good' : 'bad') + "\">" + result.statusCode + "</span> <span class=\"handled-by\">" + result.handledBy + "</span> " + result.method + " <span class=\"path\">" + result.path + "</span>";
-                    document.querySelector('.traffic .access-logs .container').appendChild(div);
-                    if (result.statusCode === 200) {
-                        this.game.increaseHitCounter();
-                        this.game.giveMoneyForHit();
-                    }
-                    this.game.infraManager.renderInfrastructureView();
+                    this.game.trafficManager.generateHit();
                 };
                 EventManager.prototype.handleToggleVmPower = function (vmName) {
                     var dcs = this.game.infraManager.getDataCenters();
@@ -604,7 +598,6 @@ System.register("managers/EventManager", ["managers/BaseManager"], function (exp
                             if (vms[vmi].getName() === vmName) {
                                 var vm = vms[vmi];
                                 var newStorage = vm.resetStorage();
-                                alert("You reset the storage on " + vm.getName() + " back to " + newStorage.toString() + "GB!");
                             }
                         }
                     }
@@ -612,6 +605,9 @@ System.register("managers/EventManager", ["managers/BaseManager"], function (exp
                 EventManager.prototype.handleShopPurchase = function (itemName) {
                     var item = this.game.shopManager.getItem(itemName);
                     if (!item) {
+                        return;
+                    }
+                    else if (item.isPurchased() === true) {
                         return;
                     }
                     else if (item.canAfford() === false) {
@@ -622,11 +618,9 @@ System.register("managers/EventManager", ["managers/BaseManager"], function (exp
                         alert('You do not meet the minimum requirements to purchase that shop item.');
                         return;
                     }
-                    else if (item.isPurchased() === true) {
-                        return;
-                    }
                     var cost = item.getCost();
                     this.game.takeMoney(cost);
+                    item.activateEffects();
                     item.setAsPurchased();
                     this.game.shopManager.renderShopView();
                 };
@@ -993,12 +987,22 @@ System.register("managers/TrafficManager", ["managers/BaseManager"], function (e
                     else {
                         this.requestsPerSecFailure += 1;
                     }
-                    return {
-                        method: method,
-                        path: path,
-                        handledBy: success ? vm.getName() : '-',
-                        statusCode: success ? 200 : 503
-                    };
+                    var div = document.createElement('div');
+                    div.className = 'pre';
+                    div.innerHTML = "<span class=\"status-" + (success ? 'good' : 'bad') + "\">" + (success ? '200' : '503') + "</span> <span class=\"handled-by\">" + (success ? vm.getName() : '-') + "</span> " + method + " <span class=\"path\">" + path + "</span>";
+                    document.querySelector('.traffic .access-logs .container').appendChild(div);
+                    // Cleanup if needed
+                    var logsRendered = document.querySelectorAll('.traffic .access-logs .container > div');
+                    if (logsRendered.length >= 250) {
+                        for (var i = 0; i < 50; i++) {
+                            document.querySelector('.traffic .access-logs .container').removeChild(logsRendered[i]);
+                        }
+                    }
+                    if (success) {
+                        this.game.increaseHitCounter();
+                        this.game.giveMoneyForHit();
+                    }
+                    this.game.infraManager.renderInfrastructureView();
                 };
                 TrafficManager.prototype.getRandomMethodType = function () {
                     var methods = ['GET', 'POST'];
@@ -1044,7 +1048,7 @@ System.register("managers/TrafficManager", ["managers/BaseManager"], function (e
 System.register("ShopItem", [], function (exports_11, context_11) {
     "use strict";
     var __moduleName = context_11 && context_11.id;
-    var SHOP_CATEGORY, ShopItem;
+    var SHOP_CATEGORY, ITEM_EFFECT, ShopItem;
     return {
         setters: [],
         execute: function () {
@@ -1053,8 +1057,12 @@ System.register("ShopItem", [], function (exports_11, context_11) {
                 SHOP_CATEGORY[SHOP_CATEGORY["MARKETING"] = 1] = "MARKETING";
             })(SHOP_CATEGORY || (SHOP_CATEGORY = {}));
             exports_11("SHOP_CATEGORY", SHOP_CATEGORY);
+            (function (ITEM_EFFECT) {
+                ITEM_EFFECT[ITEM_EFFECT["INCREASE_TRAFFIC"] = 0] = "INCREASE_TRAFFIC";
+            })(ITEM_EFFECT || (ITEM_EFFECT = {}));
+            exports_11("ITEM_EFFECT", ITEM_EFFECT);
             ShopItem = /** @class */ (function () {
-                function ShopItem(manager, category, name, cost, description, icon, requirements) {
+                function ShopItem(manager, category, name, cost, description, icon, effectString, requirements) {
                     if (requirements === void 0) { requirements = []; }
                     this.requirements = [];
                     // Saved
@@ -1065,6 +1073,7 @@ System.register("ShopItem", [], function (exports_11, context_11) {
                     this.category = category;
                     this.description = description;
                     this.icon = icon;
+                    this.effects = effectString;
                     if (requirements.length > 0) {
                         this.parseRequirements(requirements);
                     }
@@ -1123,6 +1132,18 @@ System.register("ShopItem", [], function (exports_11, context_11) {
                 ShopItem.prototype.setAsPurchased = function () {
                     this.purchased = true;
                 };
+                ShopItem.prototype.activateEffects = function () {
+                    var _this = this;
+                    this.effects.split(';').forEach(function (effect) {
+                        var effectName = effect.split(':')[0];
+                        var effectValue = effect.split(':')[1];
+                        switch (effectName) {
+                            case 'traffic':
+                                _this.manager.game.increaseTrafficPerSec(Number(effectValue.replace('+', '')));
+                                break;
+                        }
+                    });
+                };
                 return ShopItem;
             }());
             exports_11("default", ShopItem);
@@ -1167,11 +1188,11 @@ System.register("managers/ShopManager", ["managers/BaseManager", "ShopItem"], fu
                 };
                 ShopManager.prototype.populateItems = function () {
                     // General
-                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.GENERAL, 'CDN', 500, 'Research how to create a [CDN] vm type. This will handle all [/static] routes.', 'fab fa-maxcdn', []));
+                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.GENERAL, 'CDN', 500, 'Research how to create a [CDN] vm type. This will handle all [/static] routes.', 'fab fa-maxcdn', '', []));
                     // Marketing
-                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Tell My Friends I', 100, 'You tell your friends about your new website and gain [+1/s] in traffic.', 'fas fa-users', []));
-                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Tell My Friends II', 1000, 'You tell your friends about your new website and gain [+5/s] in traffic.', 'fas fa-users', ['Tell My Friends I']));
-                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Podcast I', 2000, 'asldfksdflj asldkfj sldfkj sdlfkj sflkj sflksj flksjdf slkdfj sdlfkj sflksdfj You advertise on a podcast and gain [+15/s] in traffic.', 'fas fa-podcast', []));
+                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Tell My Friends I', 100, 'You tell your friends about your new website and gain [+1/s] in traffic.', 'fas fa-users', 'traffic:+1', []));
+                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Tell My Friends II', 1000, 'You post about your website on social media and gain [+5/s] in traffic.', 'fas fa-users', 'traffic:+5', ['Tell My Friends I']));
+                    this.items.push(new ShopItem_1["default"](this, ShopItem_1.SHOP_CATEGORY.MARKETING, 'Podcast I', 2000, 'You advertise on a podcast and gain [+15/s] in traffic.', 'fas fa-podcast', 'traffic:+15', []));
                 };
                 ShopManager.prototype.getItem = function (itemName) {
                     for (var i = 0; i < this.items.length; i++) {
@@ -1253,14 +1274,18 @@ System.register("game", ["managers/EventManager", "managers/InfraManager", "mana
                     this.visitCount = 0;
                     this.money = 0;
                     this.moneyPerHit = 1;
+                    this.trafficPerSec = 0;
                     // Private
                     this.saveTimer = null;
+                    this.trafficTimer = null;
+                    this.partialTrafficCounter = 0;
                     this.eventManager = new EventManager_1["default"](this);
                     this.infraManager = new InfraManager_1["default"](this);
                     this.trafficManager = new TrafficManager_1["default"](this);
                     this.shopManager = new ShopManager_1["default"](this);
                     this.loadSavedGame();
                     this.saveTimer = setInterval(this.saveGame.bind(this), 1000);
+                    this.trafficTimer = setInterval(this.generateTraffic.bind(this), 100);
                 }
                 Game.prototype.saveGame = function () {
                     var savedGame = {
@@ -1269,7 +1294,8 @@ System.register("game", ["managers/EventManager", "managers/InfraManager", "mana
                         visitCount: this.visitCount,
                         money: this.money,
                         moneyPerHit: this.moneyPerHit,
-                        shop: this.shopManager.save()
+                        shop: this.shopManager.save(),
+                        trafficPerSec: this.trafficPerSec
                     };
                     localStorage.setItem('savedGame', JSON.stringify(savedGame));
                 };
@@ -1279,6 +1305,7 @@ System.register("game", ["managers/EventManager", "managers/InfraManager", "mana
                         this.increaseHitCounter(savedGame.visitCount);
                         this.giveMoney(savedGame.money);
                         this.moneyPerHit = savedGame.moneyPerHit;
+                        this.trafficPerSec = savedGame.trafficPerSec;
                         this.infraManager.load(savedGame.infrastructure);
                         this.shopManager.load(savedGame.shop);
                         return;
@@ -1312,6 +1339,24 @@ System.register("game", ["managers/EventManager", "managers/InfraManager", "mana
                 };
                 Game.prototype.getMoney = function () {
                     return this.money;
+                };
+                Game.prototype.increaseTrafficPerSec = function (amount) {
+                    this.trafficPerSec += amount;
+                };
+                Game.prototype.generateTraffic = function () {
+                    if (this.trafficPerSec === 0) {
+                        return;
+                    }
+                    var trafficPerTick = this.trafficPerSec / 10;
+                    this.partialTrafficCounter += trafficPerTick;
+                    if (this.partialTrafficCounter >= 1) {
+                        var hits = Math.floor(this.partialTrafficCounter);
+                        console.log(hits);
+                        for (var i = 0; i < hits; i++) {
+                            this.trafficManager.generateHit();
+                        }
+                        this.partialTrafficCounter -= hits;
+                    }
                 };
                 return Game;
             }());

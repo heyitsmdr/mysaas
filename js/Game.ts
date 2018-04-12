@@ -15,9 +15,12 @@ class Game {
   private visitCount: number = 0;
   private money: number = 0;
   private moneyPerHit: number = 1;
+  private trafficPerSec: number = 0;
 
   // Private
   private saveTimer: any = null;
+  private trafficTimer: any = null;
+  private partialTrafficCounter: number = 0;
 
   constructor () {
     this.eventManager = new EventManager(this);
@@ -27,27 +30,30 @@ class Game {
 
     this.loadSavedGame();
     this.saveTimer = setInterval(this.saveGame.bind(this), 1000);
+    this.trafficTimer = setInterval(this.generateTraffic.bind(this), 100);
   }
 
-  public saveGame() {
+  public saveGame(): void {
     const savedGame: ISavedGame = {
       lastSaveTime: Date.now(),
       infrastructure: this.infraManager.save(),
       visitCount: this.visitCount,
       money: this.money,
       moneyPerHit: this.moneyPerHit,
-      shop: this.shopManager.save()
+      shop: this.shopManager.save(),
+      trafficPerSec: this.trafficPerSec
     };
 
     localStorage.setItem('savedGame', JSON.stringify(savedGame));
   }
 
-  public loadSavedGame() {
+  public loadSavedGame(): void {
     if (localStorage.getItem('savedGame') !== null) {
       const savedGame: ISavedGame = JSON.parse(localStorage.getItem('savedGame'));
       this.increaseHitCounter(savedGame.visitCount);
       this.giveMoney(savedGame.money);
       this.moneyPerHit = savedGame.moneyPerHit;
+      this.trafficPerSec = savedGame.trafficPerSec;
       this.infraManager.load(savedGame.infrastructure);
       this.shopManager.load(savedGame.shop);
       return;
@@ -62,17 +68,17 @@ class Game {
     vm.setPoweredOn(true);
   }
 
-  public increaseHitCounter(amount: number = 1) {
+  public increaseHitCounter(amount: number = 1): void {
     this.visitCount += amount;
     document.querySelector('#hit-count').innerHTML = this.visitCount.toString();
   }
 
-  public giveMoney(money: number) {
+  public giveMoney(money: number): void {
     this.money += money;
     this.updateMoney();
   }
 
-  public takeMoney(money: number) {
+  public takeMoney(money: number): void {
     this.money -= money;
     this.updateMoney();
   }
@@ -81,12 +87,35 @@ class Game {
     document.querySelector('#money-count').innerHTML = `$${this.money.toString()}`;
   }
 
-  public giveMoneyForHit() {
+  public giveMoneyForHit(): void {
     this.giveMoney(this.moneyPerHit);
   }
 
-  public getMoney() {
+  public getMoney(): number {
     return this.money;
+  }
+
+  public increaseTrafficPerSec(amount: number): void {
+    this.trafficPerSec += amount;
+  }
+
+  public generateTraffic(): void {
+    if (this.trafficPerSec === 0) {
+      return;
+    }
+
+    const trafficPerTick = this.trafficPerSec / 10;
+    
+    this.partialTrafficCounter += trafficPerTick;
+
+    if (this.partialTrafficCounter >= 1) {
+      const hits = Math.floor(this.partialTrafficCounter);
+      console.log(hits);
+      for (let i = 0; i < hits; i++) {
+        this.trafficManager.generateHit();
+      }
+      this.partialTrafficCounter -= hits;
+    }
   }
 }
 

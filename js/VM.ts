@@ -157,6 +157,8 @@ class VM extends BaseObject {
       return false;
     } else if (this.currentMemory > this.memory) {
       return false;
+    } else if (this.currentStorage > this.storage) {
+      return false;
     }
 
     switch (this.type) {
@@ -208,11 +210,11 @@ class VM extends BaseObject {
 
   private lowerResourceUsage(): void {
     if (this.currentLoad > this.startingLoad) {
-      this.currentLoad -= 0.01;
+      this.currentLoad -= (0.01 * this.currentLoad);
       this.game.infraManager.renderInfrastructureView();
     }
     if (this.currentMemory > this.startingMemory) {
-      this.currentMemory -= 0.01;
+      this.currentMemory -= (0.01 * this.currentMemory);
       this.game.infraManager.renderInfrastructureView();
     }
   }

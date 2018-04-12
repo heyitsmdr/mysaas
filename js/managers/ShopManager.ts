@@ -28,11 +28,11 @@ class ShopManager extends BaseManager {
 
   private populateItems(): void {
     // General
-    this.items.push(new ShopItem(this, SHOP_CATEGORY.GENERAL, 'CDN', 500, 'Research how to create a [CDN] vm type. This will handle all [/static] routes.', 'fab fa-maxcdn', []));
+    this.items.push(new ShopItem(this, SHOP_CATEGORY.GENERAL, 'CDN', 500, 'Research how to create a [CDN] vm type. This will handle all [/static] routes.', 'fab fa-maxcdn', '', []));
     // Marketing
-    this.items.push(new ShopItem(this, SHOP_CATEGORY.MARKETING, 'Tell My Friends I', 100, 'You tell your friends about your new website and gain [+1/s] in traffic.', 'fas fa-users', []));
-    this.items.push(new ShopItem(this, SHOP_CATEGORY.MARKETING, 'Tell My Friends II', 1000, 'You tell your friends about your new website and gain [+5/s] in traffic.', 'fas fa-users', ['Tell My Friends I']));
-    this.items.push(new ShopItem(this, SHOP_CATEGORY.MARKETING, 'Podcast I', 2000, 'asldfksdflj asldkfj sldfkj sdlfkj sflkj sflksj flksjdf slkdfj sdlfkj sflksdfj You advertise on a podcast and gain [+15/s] in traffic.', 'fas fa-podcast', []));
+    this.items.push(new ShopItem(this, SHOP_CATEGORY.MARKETING, 'Tell My Friends I', 100, 'You tell your friends about your new website and gain [+1/s] in traffic.', 'fas fa-users', 'traffic:+1', []));
+    this.items.push(new ShopItem(this, SHOP_CATEGORY.MARKETING, 'Tell My Friends II', 1000, 'You post about your website on social media and gain [+5/s] in traffic.', 'fas fa-users', 'traffic:+5', ['Tell My Friends I']));
+    this.items.push(new ShopItem(this, SHOP_CATEGORY.MARKETING, 'Podcast I', 2000, 'You advertise on a podcast and gain [+15/s] in traffic.', 'fas fa-podcast', 'traffic:+15', []));
   }
 
   public getItem(itemName: String): ShopItem {

@@ -78,19 +78,7 @@ class EventManager extends BaseManager {
   }
 
   private handleVisitWebsite(): void {
-    const result: any = this.game.trafficManager.generateHit();
-
-    const div: HTMLDivElement = document.createElement('div');
-    div.className = 'pre';
-    div.innerHTML = `<span class="status-${result.statusCode === 200 ? 'good' : 'bad'}">${result.statusCode}</span> <span class="handled-by">${result.handledBy}</span> ${result.method} <span class="path">${result.path}</span>`;
-    document.querySelector('.traffic .access-logs .container').appendChild(div);
-
-    if (result.statusCode === 200) {
-      this.game.increaseHitCounter();
-      this.game.giveMoneyForHit();
-    }
-
-    this.game.infraManager.renderInfrastructureView();
+    this.game.trafficManager.generateHit();
   }
 
   private handleToggleVmPower(vmName: String): void {
@@ -241,7 +229,6 @@ class EventManager extends BaseManager {
           const vm = vms[vmi];
 
           const newStorage = vm.resetStorage();
-          alert(`You reset the storage on ${vm.getName()} back to ${newStorage.toString()}GB!`)
         }
       }
     }
@@ -252,18 +239,20 @@ class EventManager extends BaseManager {
 
     if (!item) {
       return;
+    } else if (item.isPurchased() === true) {
+      return;
     } else if (item.canAfford() === false) {
       alert('You cannot afford that shop item.');
       return;
     } else if (item.hasRequirements() === false) {
       alert('You do not meet the minimum requirements to purchase that shop item.');
       return;
-    } else if (item.isPurchased() === true) {
-      return;
     }
 
     const cost = item.getCost();
     this.game.takeMoney(cost);
+
+    item.activateEffects();
     item.setAsPurchased();
 
     this.game.shopManager.renderShopView();
