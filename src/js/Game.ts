@@ -11,7 +11,7 @@ class Game {
   public trafficManager: TrafficManager;
   public shopManager: ShopManager;
 
-  // Saved
+  // Private (Saved)
   private visitCount: number = 0;
   private money: number = 0;
   private moneyPerHit: number = 1;
@@ -120,5 +120,3 @@ class Game {
 }
 
 export default Game;
-
-window['Game'] = new Game();

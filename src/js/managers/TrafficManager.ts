@@ -79,7 +79,7 @@ class TrafficManager extends BaseManager {
   }
 
   private getRandomPath(methodName: String): String {
-    let paths = [];
+    let paths: String[] = [];
 
     switch (methodName) {
       case 'GET':
